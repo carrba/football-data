@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Track Player Stats - Football Data Recorder{% endblock %}
+
+{% block content %}
+<style>
+    .stats-tracking-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .players-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+    }
+    
+    .player-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    
+    .player-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .player-header {
+        border-bottom: 2px solid #3498db;
+        padding-bottom: 0.8rem;
+        margin-bottom: 1rem;
+    }
+    
+    .player-name {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .player-position {
+        font-size: 0.9rem;
+        color: #7f8c8d;
+        margin-top: 0.3rem;
+    }
+    
+    .stat-item {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 0.8rem;
+        align-items: center;
+        padding: 0.6rem;
+        margin-bottom: 0.5rem;
+        background: #f8f9fa;
+        border-radius: 4px;
+    }
+    
+    .stat-label {
+        font-size: 0.95rem;
+        color: #555;
+        font-weight: 500;
+    }
+    
+    .stat-value {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #2c3e50;
+        min-width: 35px;
+        text-align: center;
+        background: white;
+        padding: 0.3rem 0.6rem;
+        border-radius: 4px;
+    }
+    
+    .stat-buttons {
+        display: flex;
+        gap: 0.4rem;
+    }
+    
+    .stat-btn {
+        width: 40px;
+        height: 40px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 1.3rem;
+        font-weight: bold;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .stat-btn.plus {
+        background-color: #27ae60;
+        color: white;
+    }
+    
+    .stat-btn.plus:hover {
+        background-color: #229954;
+        transform: scale(1.08);
+    }
+    
+    .stat-btn.minus {
+        background-color: #e74c3c;
+        color: white;
+    }
+    
+    .stat-btn.minus:hover {
+        background-color: #c0392b;
+        transform: scale(1.08);
+    }
+    
+    .stat-btn:active {
+        transform: scale(0.95);
+    }
+    
+    .team-divider {
+        margin: 2rem 0;
+        text-align: center;
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: #3498db;
+    }
+</style>
+
+<div class="stats-tracking-container">
+    <div class="card">
+        <h1>Track Player Statistics</h1>
+        <h2 style="text-align: center; margin: 1rem 0; font-size: 2.5rem; color: #2c3e50;">
+            {{ match.home_team.name }} vs {{ match.away_team.name }}
+        </h2>
+        <p style="text-align: center; color: #7f8c8d;">
+            {{ match.match_date.strftime('%Y-%m-%d %H:%M') }}
+        </p>
+        
+        <div class="actions" style="margin-top: 1.5rem; text-align: center;">
+            <a href="{{ url_for('match_detail', match_id=match.id) }}" class="btn btn-secondary">Back to Match</a>
+            <a href="{{ url_for('match_stats', match_id=match.id) }}" class="btn btn-primary">View Full Stats</a>
+        </div>
+    </div>
+
+    {% if not player_stats %}
+    <div class="card" style="margin-top: 2rem; text-align: center;">
+        <p>No players added to this match yet.</p>
+        <a href="{{ url_for('match_lineup', match_id=match.id) }}" class="btn btn-primary">Add Starting Lineup</a>
+    </div>
+    {% else %}
+    
+    <!-- Group players by team -->
+    {% set home_stats = [] %}
+    {% set away_stats = [] %}
+    {% for stat in player_stats %}
+        {% if stat.player.team_id == match.home_team_id %}
+            {% set _ = home_stats.append(stat) %}
+        {% else %}
+            {% set _ = away_stats.append(stat) %}
+        {% endif %}
+    {% endfor %}
+
+    <!-- Home Team Players -->
+    <div class="team-divider">{{ match.home_team.name }} (Your Team)</div>
+    <div class="players-grid">
+        {% for stat in home_stats %}
+        <div class="player-card">
+            <div class="player-header">
+                <div class="player-name">{{ stat.player.name }}</div>
+                <div class="player-position">{{ stat.player.position }}</div>
+            </div>
+            
+            <div class="stat-item">
+                <span class="stat-label">✅ Complete Passes</span>
+                <span class="stat-value" id="stat-{{ stat.id }}-completed_passes">{{ stat.completed_passes }}</span>
+                <div class="stat-buttons">
+                    <button class="stat-btn plus" onclick="incrementStat({{ match.id }}, {{ stat.player.id }}, {{ stat.id }}, 'completed_passes')">+</button>
+                    <button class="stat-btn minus" onclick="decrementStat({{ match.id }}, {{ stat.player.id }}, {{ stat.id }}, 'completed_passes')">−</button>
+                </div>
+            </div>
+            
+            <div class="stat-item">
+                <span class="stat-label">❌ Incomplete Passes</span>
+                <span class="stat-value" id="stat-{{ stat.id }}-incomplete_passes">{{ stat.incomplete_passes }}</span>
+                <div class="stat-buttons">
+                    <button class="stat-btn plus" onclick="incrementStat({{ match.id }}, {{ stat.player.id }}, {{ stat.id }}, 'incomplete_passes')">+</button>
+                    <button class="stat-btn minus" onclick="decrementStat({{ match.id }}, {{ stat.player.id }}, {{ stat.id }}, 'incomplete_passes')">−</button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Away Team Aggregate Stats -->
+    <div class="team-divider">{{ match.away_team.name }} (Opponent - Team Total)</div>
+    <div style="max-width: 500px; margin: 0 auto;">
+        {% for stat in away_stats %}
+        <div class="player-card" style="background: #f0f8ff;">
+            <div class="player-header">
+                <div class="player-name">{{ match.away_team.name }} - Team Stats</div>
+                <div class="player-position">Aggregate</div>
+            </div>
+            
+            <div class="stat-item">
+                <span class="stat-label">✅ Complete Passes</span>
+                <span class="stat-value" id="stat-{{ stat.id }}-completed_passes">{{ stat.completed_passes }}</span>
+                <div class="stat-buttons">
+                    <button class="stat-btn plus" onclick="incrementStat({{ match.id }}, {{ stat.player.id }}, {{ stat.id }}, 'completed_passes')">+</button>
+                    <button class="stat-btn minus" onclick="decrementStat({{ match.id }}, {{ stat.player.id }}, {{ stat.id }}, 'completed_passes')">−</button>
+                </div>
+            </div>
+            
+            <div class="stat-item">
+                <span class="stat-label">❌ Incomplete Passes</span>
+                <span class="stat-value" id="stat-{{ stat.id }}-incomplete_passes">{{ stat.incomplete_passes }}</span>
+                <div class="stat-buttons">
+                    <button class="stat-btn plus" onclick="incrementStat({{ match.id }}, {{ stat.player.id }}, {{ stat.id }}, 'incomplete_passes')">+</button>
+                    <button class="stat-btn minus" onclick="decrementStat({{ match.id }}, {{ stat.player.id }}, {{ stat.id }}, 'incomplete_passes')">−</button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function incrementStat(matchId, playerId, statsId, statName) {
+    fetch(`/api/matches/${matchId}/stats/${playerId}/increment`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ stat_name: statName })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update the display
+            document.getElementById(`stat-${statsId}-${statName}`).textContent = data.new_value;
+        } else {
+            alert('Error updating stat: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating stat');
+    });
+}
+
+function decrementStat(matchId, playerId, statsId, statName) {
+    fetch(`/api/matches/${matchId}/stats/${playerId}/decrement`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ stat_name: statName })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update the display
+            document.getElementById(`stat-${statsId}-${statName}`).textContent = data.new_value;
+        } else {
+            alert('Error updating stat: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating stat');
+    });
+}
+</script>
+{% endblock %}

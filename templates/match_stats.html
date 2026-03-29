@@ -1,0 +1,2808 @@
+{% extends "base.html" %}
+
+{% block title %}Match Stats - Football Data Recorder{% endblock %}
+
+{% block content %}
+<style>
+    .stats-wrapper {
+        display: flex;
+        gap: 1.5rem;
+        margin-top: 2rem;
+        min-height: 600px;
+    }
+    
+    .player-sidebar {
+        width: 250px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 1rem;
+        overflow-y: auto;
+        flex-shrink: 0;
+    }
+    
+    .team-section {
+        margin-bottom: 1.5rem;
+    }
+    
+    .team-section-title {
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: #2c3e50;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #3498db;
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    .team-section-title:hover {
+        background: #ecf0f1;
+        padding-left: 0.25rem;
+        margin-left: -0.25rem;
+        margin-right: -0.25rem;
+        padding-right: 0.25rem;
+    }
+    
+    .player-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    .player-list-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.35rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #7f8c8d;
+        padding: 0 0.3rem 0.2rem;
+        border-bottom: 1px solid #ecf0f1;
+        margin-bottom: 0.15rem;
+    }
+    
+    .player-item {
+        padding: 0.6rem 0.8rem;
+        background: #f8f9fa;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border-left: 3px solid transparent;
+        font-size: 0.9rem;
+    }
+    
+    .player-item:hover {
+        background: #e8f4f8;
+        transform: translateX(4px);
+    }
+    
+    .player-item.active {
+        background: #3498db;
+        color: white;
+        border-left-color: #2980b9;
+        font-weight: 600;
+    }
+    
+    .player-item-name {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.35rem;
+        align-items: center;
+    }
+
+    .player-item-main {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        gap: 0.4rem;
+    }
+    
+    .player-item-jersey {
+        font-size: 0.8rem;
+        opacity: 0.8;
+    }
+
+    .sidebar-pressure-controls {
+        display: inline-flex;
+        gap: 0.2rem;
+        align-items: center;
+    }
+
+    .sidebar-pressure-count {
+        min-width: 1.25rem;
+        text-align: center;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #2c3e50;
+    }
+
+    .sidebar-pressure-btn {
+        width: 1.2rem;
+        height: 1.2rem;
+        border: none;
+        border-radius: 3px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        cursor: pointer;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .sidebar-pressure-btn.increment {
+        background: #27ae60;
+        color: #fff;
+    }
+
+    .sidebar-pressure-btn.decrement {
+        background: #e74c3c;
+        color: #fff;
+    }
+
+    .player-item.active .sidebar-pressure-btn.increment {
+        background: #1e8449;
+    }
+
+    .player-item.active .sidebar-pressure-btn.decrement {
+        background: #c0392b;
+    }
+
+    .player-item.active .sidebar-pressure-count {
+        color: #ffffff;
+    }
+
+    .gk-badge {
+        background: #16a085;
+        color: white;
+        font-size: 0.7rem;
+        padding: 0.15rem 0.35rem;
+        border-radius: 3px;
+        margin-left: 0.35rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+    }
+
+    .goalkeeper-only {
+        display: none;
+    }
+
+    .goalkeeper-only.stat-row {
+        background: #eefaf7;
+        border-left: 3px solid #16a085;
+        border-radius: 4px;
+    }
+
+    .gk-summary {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin: 0.75rem 0 1rem;
+    }
+
+    .gk-summary-item {
+        background: #eefaf7;
+        border: 1px solid #cfeee6;
+        color: #0e6251;
+        padding: 0.35rem 0.6rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .stats-panel {
+        flex: 1;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 1rem;
+        overflow-y: auto;
+    }
+    
+    .stats-panel.hidden {
+        display: none;
+    }
+    
+    .stats-panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #3498db;
+    }
+    
+    .stats-panel-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #2c3e50;
+    }
+
+    .stats-panel-subtitle {
+        color: #7f8c8d;
+        font-size: 0.8rem;
+        line-height: 1.2;
+    }
+    
+    .close-panel-btn {
+        padding: 0.35rem 0.7rem;
+        background: #95a5a6;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        transition: all 0.2s;
+    }
+    
+    .close-panel-btn:hover {
+        background: #7f8c8d;
+    }
+    
+    .empty-panel {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #95a5a6;
+        font-size: 1.1rem;
+    }
+    
+    .player-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+    
+    .stat-row {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 0.5rem;
+        align-items: center;
+        margin-bottom: 0.3rem;
+        padding: 0.2rem;
+    }
+
+    .stat-row-pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .stat-item-inline {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 0.35rem;
+        align-items: center;
+        padding: 0.25rem 0.3rem;
+        background: #fafbfc;
+        border-radius: 4px;
+    }
+    
+    .stat-label {
+        font-size: 0.84rem;
+        color: #555;
+    }
+    
+    .stat-value {
+        font-weight: 600;
+        font-size: 1rem;
+        color: #2c3e50;
+        min-width: 30px;
+        text-align: center;
+    }
+    
+    .stat-buttons {
+        display: flex;
+        gap: 0.3rem;
+    }
+    
+    .stat-btn {
+        padding: 0.2rem 0.45rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        font-weight: 600;
+    }
+    
+    .stat-btn.increment {
+        background-color: #27ae60;
+        color: white;
+    }
+    
+    .stat-btn.increment:hover {
+        background-color: #229954;
+        transform: scale(1.05);
+    }
+    
+    .stat-btn.decrement {
+        background-color: #e74c3c;
+        color: white;
+    }
+    
+    .stat-btn.decrement:hover {
+        background-color: #c0392b;
+        transform: scale(1.05);
+    }
+    
+    .stat-btn:active {
+        transform: scale(0.95);
+    }
+    
+    .stat-category-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #7f8c8d;
+        margin-bottom: 0.5rem;
+        margin-top: 0.8rem;
+        text-transform: uppercase;
+    }
+    
+    .record-btn-group {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+    
+    .record-btn {
+        flex: 1;
+        padding: 0.5rem;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+    }
+    
+    .record-btn:hover {
+        background: #2980b9;
+    }
+
+    @media (max-width: 768px) {
+        .stat-row-pair {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="card">
+    <h2>{{ match.home_team.name }} vs {{ match.away_team.name }}</h2>
+    <h1 style="text-align: center; margin: 1rem 0; font-size: 3rem; color: #2c3e50;">
+        {{ match.home_score }} - {{ match.away_score }}
+    </h1>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
+        <div>
+            <p><strong>Date:</strong> {{ match.match_date.strftime('%Y-%m-%d %H:%M') }}</p>
+            <p><strong>Competition:</strong> {{ match.competition or 'N/A' }}</p>
+        </div>
+        <div>
+            <p><strong>Venue:</strong> {{ match.venue or 'N/A' }}</p>
+            <p><strong>Season:</strong> {{ match.season or 'N/A' }}</p>
+        </div>
+    </div>
+    
+    <div class="actions" style="margin-top: 1.5rem;">
+        <a href="{{ url_for('match_detail', match_id=match.id) }}" class="btn btn-secondary">Back to Match</a>
+    </div>
+</div>
+
+<h2 style="margin-top: 2rem;">Player Statistics</h2>
+
+<div class="stats-wrapper">
+    <!-- Sidebar with Player List -->
+    <div class="player-sidebar">
+        <!-- Home Team -->
+        <div class="team-section">
+            <div class="team-section-title" onclick="toggleTeamSection(this)">🏠 {{ match.home_team.name }}</div>
+            <div class="player-list" id="home-team-players">
+                <div class="player-list-header">
+                    <span>Player - No.</span>
+                    <span>Pressures</span>
+                </div>
+                {% for player in home_players %}
+                    {% set stats = home_player_stats[loop.index0] %}
+                    <div class="player-item" id="player-home-{{ player.id }}" data-is-goalkeeper="{{ 'true' if is_goalkeeper_map.get(player.id) else 'false' }}" onclick="selectPlayer('home', {{ player.id }}, '{{ player.name }}', {{ stats.id }}, '{{ player.jersey_number or '-' }}')">
+                        <div class="player-item-name">
+                            <span class="player-item-main">
+                                <span>{{ player.name }} - {{ player.jersey_number or '-' }}{% if is_goalkeeper_map.get(player.id) %}<span class="gk-badge">GK</span>{% endif %}</span>
+                            </span>
+                            {% if not is_goalkeeper_map.get(player.id) %}
+                            <span class="sidebar-pressure-controls">
+                                <button class="sidebar-pressure-btn increment" onclick="event.stopPropagation(); incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'pressures')">+</button>
+                                <button class="sidebar-pressure-btn decrement" onclick="event.stopPropagation(); decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'pressures')">-</button>
+                                <span class="sidebar-pressure-count" id="stat-{{ stats.id }}-pressures">{{ stats.pressures }}</span>
+                            </span>
+                            {% else %}
+                            <span class="sidebar-pressure-controls">
+                                <span class="sidebar-pressure-count">-</span>
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Away Team -->
+        <div class="team-section">
+            <div class="team-section-title" onclick="toggleTeamSection(this)">✈️ {{ match.away_team.name }}</div>
+            <div class="player-list" id="away-team-players">
+                <div class="player-list-header">
+                    <span>Player - No.</span>
+                    <span>Pressures</span>
+                </div>
+                {% for player in away_players %}
+                    {% set stats = away_player_stats[loop.index0] %}
+                    <div class="player-item" id="player-away-{{ player.id }}" data-is-goalkeeper="{{ 'true' if is_goalkeeper_map.get(player.id) else 'false' }}" onclick="selectPlayer('away', {{ player.id }}, '{{ player.name }}', {{ stats.id }}, '{{ player.jersey_number or '-' }}')">
+                        <div class="player-item-name">
+                            <span class="player-item-main">
+                                <span>{{ player.name }} - {{ player.jersey_number or '-' }}{% if is_goalkeeper_map.get(player.id) %}<span class="gk-badge">GK</span>{% endif %}</span>
+                            </span>
+                            {% if not is_goalkeeper_map.get(player.id) %}
+                            <span class="sidebar-pressure-controls">
+                                <button class="sidebar-pressure-btn increment" onclick="event.stopPropagation(); incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'pressures')">+</button>
+                                <button class="sidebar-pressure-btn decrement" onclick="event.stopPropagation(); decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'pressures')">-</button>
+                                <span class="sidebar-pressure-count" id="stat-{{ stats.id }}-pressures">{{ stats.pressures }}</span>
+                            </span>
+                            {% else %}
+                            <span class="sidebar-pressure-controls">
+                                <span class="sidebar-pressure-count">-</span>
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Stats Panel -->
+    <div class="stats-panel" id="statsPanel">
+        <div class="empty-panel">Select a player to view statistics</div>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 1rem;">
+    <h3 style="margin-top: 0;">Corner Events</h3>
+    {% if corner_events %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+            <thead>
+                <tr style="background: #f8f9fa; border-bottom: 1px solid #dfe6e9;">
+                    <th style="text-align: left; padding: 0.5rem;">Team</th>
+                    <th style="text-align: left; padding: 0.5rem;">Taker</th>
+                    <th style="text-align: left; padding: 0.5rem;">Won By</th>
+                    <th style="text-align: left; padding: 0.5rem;">Delivery</th>
+                    <th style="text-align: left; padding: 0.5rem;">Length</th>
+                    <th style="text-align: left; padding: 0.5rem;">Shot</th>
+                    <th style="text-align: left; padding: 0.5rem;">Big Chance</th>
+                    <th style="text-align: left; padding: 0.5rem;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in corner_events %}
+                <tr style="border-bottom: 1px solid #ecf0f1;">
+                    <td style="padding: 0.5rem;">{{ match.home_team.name if event.team_id == match.home_team_id else match.away_team.name }}</td>
+                    <td style="padding: 0.5rem;">{{ event.taker_player.name if event.taker_player else 'N/A' }}</td>
+                    <td style="padding: 0.5rem;">{{ event.won_by_player.name if event.won_by_player else '-' }}</td>
+                    <td style="padding: 0.5rem;">{{ event.delivery_type|title }} / {{ event.delivery_outcome|title }}</td>
+                    <td style="padding: 0.5rem;">{{ event.delivery_length|title }}</td>
+                    <td style="padding: 0.5rem;">{{ 'Yes' if event.led_to_shot else 'No' }}</td>
+                    <td style="padding: 0.5rem;">{{ 'Yes' if event.big_chance_created else 'No' }}</td>
+                    <td style="padding: 0.5rem; white-space: nowrap;">
+                        <button
+                            type="button"
+                            class="stat-btn increment corner-edit-btn"
+                            data-event-id="{{ event.id }}"
+                            data-match-id="{{ match.id }}"
+                            data-team-id="{{ event.team_id }}"
+                            data-team-name="{{ (match.home_team.name if event.team_id == match.home_team_id else match.away_team.name)|e }}"
+                            data-team-side="{{ 'home' if event.team_id == match.home_team_id else 'away' }}"
+                            data-is-main-team="{{ 'true' if event.team_id == (match.home_team_id if match.main else match.away_team_id) else 'false' }}"
+                            data-taker-id="{{ event.taker_player_id }}"
+                            data-taker-name="{{ (event.taker_player.name if event.taker_player else '')|e }}"
+                            data-won-by-player-id="{{ event.won_by_player_id or '' }}"
+                            data-delivery-type="{{ event.delivery_type }}"
+                            data-delivery-outcome="{{ event.delivery_outcome }}"
+                            data-delivery-length="{{ event.delivery_length }}"
+                            data-led-to-shot="{{ 'true' if event.led_to_shot else 'false' }}"
+                            data-big-chance-created="{{ 'true' if event.big_chance_created else 'false' }}"
+                            style="padding: 0.25rem 0.5rem; margin-right: 0.35rem;">Edit</button>
+                        <button
+                            type="button"
+                            class="stat-btn decrement corner-delete-btn"
+                            data-event-id="{{ event.id }}"
+                            data-match-id="{{ match.id }}"
+                            style="padding: 0.25rem 0.5rem;">Delete</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="margin: 0; color: #7f8c8d;">No corner events recorded yet.</p>
+    {% endif %}
+</div>
+
+<!-- Hidden player stats templates for population -->
+<div style="display: none;" id="playerStatsTemplates">
+    <!-- Home Team Stats -->
+    {% if home_players %}
+        {% for player in home_players %}
+            {% set stats = home_player_stats[loop.index0] %}
+            <div class="player-stats-template" data-team="home" data-player-id="{{ player.id }}" data-stats-id="{{ stats.id }}" data-player-name="{{ player.name }}" data-jersey="{{ player.jersey_number or '-' }}" data-match-id="{{ match.id }}" data-is-goalkeeper="{{ 'true' if is_goalkeeper_map.get(player.id) else 'false' }}">
+                <div class="stats-panel-header">
+                    <div>
+                        <div class="stats-panel-title">{{ player.name }}{% if is_goalkeeper_map.get(player.id) %}<span class="gk-badge">GK</span>{% endif %}</div>
+                        <div class="stats-panel-subtitle">Jersey #{{ player.jersey_number or '-' }} • {{ match.home_team.name }}</div>
+                    </div>
+                    <button class="close-panel-btn" onclick="closePlayersPanel()">Close</button>
+                </div>
+
+                {% if is_goalkeeper_map.get(player.id) %}
+                {% set gk_completed = stats.short_completed_passes + stats.long_completed_passes %}
+                {% set gk_incomplete = stats.short_incomplete_passes + stats.long_incomplete_passes %}
+                {% set gk_total_passes = gk_completed + gk_incomplete %}
+                {% set gk_pass_accuracy = (gk_completed / gk_total_passes * 100) if gk_total_passes > 0 else 0 %}
+                {% set gk_save_hold = (stats.saves_held / stats.saves * 100) if stats.saves > 0 else 0 %}
+                <div class="gk-summary goalkeeper-only">
+                    <div class="gk-summary-item">Saves: <span data-gk-summary="saves">{{ stats.saves }}</span></div>
+                    <div class="gk-summary-item">Hold %: <span data-gk-summary="hold_pct">{{ gk_save_hold|round(1) }}%</span></div>
+                    <div class="gk-summary-item">Pass Acc: <span data-gk-summary="pass_acc">{{ gk_pass_accuracy|round(1) }}%</span></div>
+                </div>
+                {% endif %}
+                
+                <div class="player-stats">
+                
+                <div class="stat-category-title">⚽ Passing</div>
+                <div class="stat-row-pair">
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Short Completed</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-short_completed_passes">{{ stats.short_completed_passes }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'short_completed_passes')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'short_completed_passes')">-</button>
+                        </div>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Short Incomplete</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-short_incomplete_passes">{{ stats.short_incomplete_passes }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'short_incomplete_passes')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'short_incomplete_passes')">-</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-row-pair">
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Long Completed</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-long_completed_passes">{{ stats.long_completed_passes }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'long_completed_passes')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'long_completed_passes')">-</button>
+                        </div>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Long Incomplete</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-long_incomplete_passes">{{ stats.long_incomplete_passes }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'long_incomplete_passes')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'long_incomplete_passes')">-</button>
+                        </div>
+                    </div>
+                </div>
+
+                {% if is_goalkeeper_map.get(player.id) %}
+                {% set gk_short_total = stats.short_completed_passes + stats.short_incomplete_passes %}
+                {% set gk_long_total = stats.long_completed_passes + stats.long_incomplete_passes %}
+                {% set gk_short_acc = (stats.short_completed_passes / gk_short_total * 100) if gk_short_total > 0 else 0 %}
+                {% set gk_long_acc = (stats.long_completed_passes / gk_long_total * 100) if gk_long_total > 0 else 0 %}
+                <div class="stat-category-title goalkeeper-only">📤 GK Distribution</div>
+                <div class="stat-row goalkeeper-only">
+                    <span class="stat-label">Short Passes (C/I)</span>
+                    <span class="stat-value">{{ stats.short_completed_passes }} / {{ stats.short_incomplete_passes }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row goalkeeper-only">
+                    <span class="stat-label">Short Accuracy</span>
+                    <span class="stat-value">{{ gk_short_acc|round(1) }}%</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row goalkeeper-only">
+                    <span class="stat-label">Long Passes (C/I)</span>
+                    <span class="stat-value">{{ stats.long_completed_passes }} / {{ stats.long_incomplete_passes }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row goalkeeper-only">
+                    <span class="stat-label">Long Accuracy</span>
+                    <span class="stat-value">{{ gk_long_acc|round(1) }}%</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-category-title goalkeeper-only">🧤 Goalkeeping</div>
+                <div class="stat-row goalkeeper-only">
+                    <span class="stat-label">Saves</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-saves">{{ stats.saves }}</span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'saves')">+</button>
+                        <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'saves')">-</button>
+                    </div>
+                </div>
+                <div class="stat-row goalkeeper-only">
+                    <span class="stat-label">Saves Held</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-saves_held">{{ stats.saves_held }}</span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'saves_held')">+</button>
+                        <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'saves_held')">-</button>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="stat-category-title">🎯 Pack Passes</div>
+                <div class="stat-row">
+                    <span class="stat-label">Passes / Score / Receive</span>
+                    <span class="stat-value">
+                        <span id="stat-{{ stats.id }}-pack_passes">{{ stats.pack_passes }}</span>
+                        /
+                        <span id="stat-{{ stats.id }}-pack_pass_score">{{ stats.pack_pass_score }}</span>
+                        /
+                        <span id="stat-{{ stats.id }}-pack_pass_receive_score">{{ stats.pack_pass_receive_score }}</span>
+                    </span>
+                    <div class="stat-buttons">
+                        <button
+                            type="button"
+                            class="stat-btn increment pack-pass-record-btn"
+                            data-match-id="{{ match.id }}"
+                            data-team-id="{{ match.home_team_id }}"
+                            data-team-name="{{ match.home_team.name|e }}"
+                            data-is-main-team="{{ 'true' if match.main else 'false' }}"
+                            data-passer-id="{{ player.id }}"
+                            data-passer-name="{{ player.name|e }}"
+                            data-team-side="home">Record</button>
+                    </div>
+                </div>
+                
+                <div class="stat-category-title outfield-only">⚠️ Pack Turnovers</div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Turnovers / Score</span>
+                    <span class="stat-value">
+                        <span id="stat-{{ stats.id }}-pack_turnovers">{{ stats.pack_turnovers }}</span>
+                        /
+                        <span id="stat-{{ stats.id }}-pack_turnover_score">{{ stats.pack_turnover_score }}</span>
+                    </span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="openPackTurnoverModal({{ match.id }}, {{ player.id }}, '{{ player.name }}')">Record</button>
+                    </div>
+                </div>
+
+                <div class="stat-category-title outfield-only">🌀 Pack Dribbles</div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Dribbles / Score</span>
+                    <span class="stat-value">
+                        <span id="stat-{{ stats.id }}-pack_dribbles">{{ stats.pack_dribbles }}</span>
+                        /
+                        <span id="stat-{{ stats.id }}-pack_dribble_score">{{ stats.pack_dribble_score }}</span>
+                    </span>
+                    <div class="stat-buttons">
+                        <button
+                            type="button"
+                            class="stat-btn increment pack-dribble-record-btn"
+                            data-match-id="{{ match.id }}"
+                            data-team-id="{{ match.home_team_id }}"
+                            data-team-name="{{ match.home_team.name|e }}"
+                            data-is-main-team="{{ 'true' if match.main else 'false' }}"
+                            data-dribbler-id="{{ player.id }}"
+                            data-dribbler-name="{{ player.name|e }}">Record</button>
+                    </div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Dribbled Past / Score</span>
+                    <span class="stat-value">
+                        <span id="stat-{{ stats.id }}-pack_dribbled_past">{{ stats.pack_dribbled_past }}</span>
+                        /
+                        <span id="stat-{{ stats.id }}-pack_dribbled_past_score">{{ stats.pack_dribbled_past_score }}</span>
+                    </span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                
+                <div class="stat-category-title">🥊 Duels</div>
+                <div class="stat-row-pair">
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Aerial Won</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-aerial_duels_won">{{ stats.aerial_duels_won }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'aerial_duels_won')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'aerial_duels_won')">-</button>
+                        </div>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Aerial Lost</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-aerial_duels_lost">{{ stats.aerial_duels_lost }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'aerial_duels_lost')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'aerial_duels_lost')">-</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-row-pair">
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Ground Won</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-ground_duels_won">{{ stats.ground_duels_won }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'ground_duels_won')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'ground_duels_won')">-</button>
+                        </div>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Ground Lost</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-ground_duels_lost">{{ stats.ground_duels_lost }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'ground_duels_lost')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'ground_duels_lost')">-</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="stat-category-title">🛡️ Defense</div>
+                <div class="stat-row-pair">
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Tackles Won</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-tackles_won">{{ stats.tackles_won }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'tackles_won')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'tackles_won')">-</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Interceptions</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-interceptions">{{ stats.interceptions }}</span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'interceptions')">+</button>
+                        <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'interceptions')">-</button>
+                    </div>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Clearances</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-clearances">{{ stats.clearances }}</span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'clearances')">+</button>
+                        <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'clearances')">-</button>
+                    </div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Pressures</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-pressures">{{ stats.pressures }}</span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'pressures')">+</button>
+                        <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'pressures')">-</button>
+                    </div>
+                </div>
+                
+                <div class="stat-category-title outfield-only">🔄 Distribution & Recovery</div>
+                <div class="stat-row-pair outfield-only">
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Successful Crosses</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-successful_crosses">{{ stats.successful_crosses }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'successful_crosses')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'successful_crosses')">-</button>
+                        </div>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Unsuccessful Crosses</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-unsuccessful_crosses">{{ stats.unsuccessful_crosses }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'unsuccessful_crosses')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'unsuccessful_crosses')">-</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-row-pair outfield-only">
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Throw-in Retained</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-throw_in_retained">{{ stats.throw_in_retained }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'throw_in_retained')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'throw_in_retained')">-</button>
+                        </div>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Throw-in Lost</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-throw_in_lost">{{ stats.throw_in_lost }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'throw_in_lost')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'throw_in_lost')">-</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Recoveries</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-recoveries">{{ stats.recoveries }}</span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'recoveries')">+</button>
+                        <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'recoveries')">-</button>
+                    </div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Progressive Runs</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-progressive_runs">{{ stats.progressive_runs }}</span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'progressive_runs')">+</button>
+                        <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'progressive_runs')">-</button>
+                    </div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Touches in Opposition Box</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-touches_in_opposition_box">{{ stats.touches_in_opposition_box }}</span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'touches_in_opposition_box')">+</button>
+                        <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'touches_in_opposition_box')">-</button>
+                    </div>
+                </div>
+
+                <div class="stat-category-title outfield-only">🎯 Shooting</div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Shots on Target</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-shots_on_target">{{ stats.shots_on_target }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Shots off Target</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-shots_off_target">{{ stats.shots_off_target }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Shots Blocked</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-shots_blocked">{{ stats.shots_blocked }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Shots Inside Box</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-shots_inside_box">{{ stats.shots_inside_box }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Shots Outside Box</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-shots_outside_box">{{ stats.shots_outside_box }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">xG Inside Box</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-xG_inside_box">{{ stats.xG_inside_box|round(2) }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">xG Outside Box</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-xG_outside_box">{{ stats.xG_outside_box|round(2) }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Goals</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-goals">{{ stats.goals }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Assists</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-assists">{{ stats.assists }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Chances Created</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-chances_created">{{ stats.chances_created }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Big Chances Created</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-big_chances_created">{{ stats.big_chances_created }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="outfield-only" style="margin-top: 0.75rem;">
+                    <button onclick="openShotModal({{ match.id }}, {{ player.id }}, '{{ player.name }}', {{ stats.id }})" style="width: 100%; padding: 0.5rem; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                        📊 Record Shot
+                    </button>
+                </div>
+                <div class="outfield-only" style="margin-top: 0.5rem;">
+                    <button
+                        type="button"
+                        class="stat-btn increment corner-record-btn"
+                        data-match-id="{{ match.id }}"
+                        data-team-id="{{ match.home_team_id }}"
+                        data-team-name="{{ match.home_team.name|e }}"
+                        data-is-main-team="{{ 'true' if match.main else 'false' }}"
+                        data-taker-id="{{ player.id }}"
+                        data-taker-name="{{ player.name|e }}"
+                        data-team-side="home"
+                        style="width: 100%; padding: 0.5rem; background: #8e44ad; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                        🚩 Record Corner
+                    </button>
+                </div>
+
+                <div class="stat-category-title">🚨 Crime Count</div>
+                <div class="stat-row-pair">
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Fouls</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-fouls_committed">{{ stats.fouls_committed }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'fouls_committed')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'fouls_committed')">-</button>
+                        </div>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Fouled</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-fouls_won">{{ stats.fouls_won }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'fouls_won')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'fouls_won')">-</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Offsides</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-offsides">{{ stats.offsides }}</span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'offsides')">+</button>
+                        <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'offsides')">-</button>
+                    </div>
+                </div>
+                </div>
+            </div>
+            {% endfor %}
+    {% endif %}
+    
+    <!-- Away Team Stats -->
+    {% if away_players %}
+        {% for player in away_players %}
+            {% set stats = away_player_stats[loop.index0] %}
+            <div class="player-stats-template" data-team="away" data-player-id="{{ player.id }}" data-stats-id="{{ stats.id }}" data-player-name="{{ player.name }}" data-jersey="{{ player.jersey_number or '-' }}" data-match-id="{{ match.id }}" data-is-goalkeeper="{{ 'true' if is_goalkeeper_map.get(player.id) else 'false' }}">
+                <div class="stats-panel-header">
+                    <div>
+                        <div class="stats-panel-title">{{ player.name }}{% if is_goalkeeper_map.get(player.id) %}<span class="gk-badge">GK</span>{% endif %}</div>
+                        <div class="stats-panel-subtitle">Jersey #{{ player.jersey_number or '-' }} • {{ match.away_team.name }}</div>
+                    </div>
+                    <button class="close-panel-btn" onclick="closePlayersPanel()">Close</button>
+                </div>
+
+                {% if is_goalkeeper_map.get(player.id) %}
+                {% set gk_completed = stats.short_completed_passes + stats.long_completed_passes %}
+                {% set gk_incomplete = stats.short_incomplete_passes + stats.long_incomplete_passes %}
+                {% set gk_total_passes = gk_completed + gk_incomplete %}
+                {% set gk_pass_accuracy = (gk_completed / gk_total_passes * 100) if gk_total_passes > 0 else 0 %}
+                {% set gk_save_hold = (stats.saves_held / stats.saves * 100) if stats.saves > 0 else 0 %}
+                <div class="gk-summary goalkeeper-only">
+                    <div class="gk-summary-item">Saves: <span data-gk-summary="saves">{{ stats.saves }}</span></div>
+                    <div class="gk-summary-item">Hold %: <span data-gk-summary="hold_pct">{{ gk_save_hold|round(1) }}%</span></div>
+                    <div class="gk-summary-item">Pass Acc: <span data-gk-summary="pass_acc">{{ gk_pass_accuracy|round(1) }}%</span></div>
+                </div>
+                {% endif %}
+                
+                <div class="player-stats">
+                
+                <div class="stat-category-title">⚽ Passing</div>
+                <div class="stat-row-pair">
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Short Completed</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-short_completed_passes">{{ stats.short_completed_passes }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'short_completed_passes')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'short_completed_passes')">-</button>
+                        </div>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Short Incomplete</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-short_incomplete_passes">{{ stats.short_incomplete_passes }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'short_incomplete_passes')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'short_incomplete_passes')">-</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-row-pair">
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Long Completed</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-long_completed_passes">{{ stats.long_completed_passes }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'long_completed_passes')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'long_completed_passes')">-</button>
+                        </div>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Long Incomplete</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-long_incomplete_passes">{{ stats.long_incomplete_passes }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'long_incomplete_passes')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'long_incomplete_passes')">-</button>
+                        </div>
+                    </div>
+                </div>
+
+                {% if is_goalkeeper_map.get(player.id) %}
+                {% set gk_short_total = stats.short_completed_passes + stats.short_incomplete_passes %}
+                {% set gk_long_total = stats.long_completed_passes + stats.long_incomplete_passes %}
+                {% set gk_short_acc = (stats.short_completed_passes / gk_short_total * 100) if gk_short_total > 0 else 0 %}
+                {% set gk_long_acc = (stats.long_completed_passes / gk_long_total * 100) if gk_long_total > 0 else 0 %}
+                <div class="stat-category-title goalkeeper-only">📤 GK Distribution</div>
+                <div class="stat-row goalkeeper-only">
+                    <span class="stat-label">Short Passes (C/I)</span>
+                    <span class="stat-value">{{ stats.short_completed_passes }} / {{ stats.short_incomplete_passes }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row goalkeeper-only">
+                    <span class="stat-label">Short Accuracy</span>
+                    <span class="stat-value">{{ gk_short_acc|round(1) }}%</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row goalkeeper-only">
+                    <span class="stat-label">Long Passes (C/I)</span>
+                    <span class="stat-value">{{ stats.long_completed_passes }} / {{ stats.long_incomplete_passes }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row goalkeeper-only">
+                    <span class="stat-label">Long Accuracy</span>
+                    <span class="stat-value">{{ gk_long_acc|round(1) }}%</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+
+                <div class="stat-category-title goalkeeper-only">🧤 Goalkeeping</div>
+                <div class="stat-row goalkeeper-only">
+                    <span class="stat-label">Saves</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-saves">{{ stats.saves }}</span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'saves')">+</button>
+                        <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'saves')">-</button>
+                    </div>
+                </div>
+                <div class="stat-row goalkeeper-only">
+                    <span class="stat-label">Saves Held</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-saves_held">{{ stats.saves_held }}</span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'saves_held')">+</button>
+                        <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'saves_held')">-</button>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="stat-category-title">🎯 Pack Passes</div>
+                <div class="stat-row">
+                    <span class="stat-label">Passes / Score / Receive</span>
+                    <span class="stat-value">
+                        <span id="stat-{{ stats.id }}-pack_passes">{{ stats.pack_passes }}</span>
+                        /
+                        <span id="stat-{{ stats.id }}-pack_pass_score">{{ stats.pack_pass_score }}</span>
+                        /
+                        <span id="stat-{{ stats.id }}-pack_pass_receive_score">{{ stats.pack_pass_receive_score }}</span>
+                    </span>
+                    <div class="stat-buttons">
+                        <button
+                            type="button"
+                            class="stat-btn increment pack-pass-record-btn"
+                            data-match-id="{{ match.id }}"
+                            data-team-id="{{ match.away_team_id }}"
+                            data-team-name="{{ match.away_team.name|e }}"
+                            data-is-main-team="{{ 'true' if not match.main else 'false' }}"
+                            data-passer-id="{{ player.id }}"
+                            data-passer-name="{{ player.name|e }}"
+                            data-team-side="away">Record</button>
+                    </div>
+                </div>
+                
+                <div class="stat-category-title outfield-only">⚠️ Pack Turnovers</div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Turnovers / Score</span>
+                    <span class="stat-value">
+                        <span id="stat-{{ stats.id }}-pack_turnovers">{{ stats.pack_turnovers }}</span>
+                        /
+                        <span id="stat-{{ stats.id }}-pack_turnover_score">{{ stats.pack_turnover_score }}</span>
+                    </span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="openPackTurnoverModal({{ match.id }}, {{ player.id }}, '{{ player.name }}')">Record</button>
+                    </div>
+                </div>
+
+                <div class="stat-category-title outfield-only">🌀 Pack Dribbles</div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Dribbles / Score</span>
+                    <span class="stat-value">
+                        <span id="stat-{{ stats.id }}-pack_dribbles">{{ stats.pack_dribbles }}</span>
+                        /
+                        <span id="stat-{{ stats.id }}-pack_dribble_score">{{ stats.pack_dribble_score }}</span>
+                    </span>
+                    <div class="stat-buttons">
+                        <button
+                            type="button"
+                            class="stat-btn increment pack-dribble-record-btn"
+                            data-match-id="{{ match.id }}"
+                            data-team-id="{{ match.away_team_id }}"
+                            data-team-name="{{ match.away_team.name|e }}"
+                            data-is-main-team="{{ 'true' if not match.main else 'false' }}"
+                            data-dribbler-id="{{ player.id }}"
+                            data-dribbler-name="{{ player.name|e }}">Record</button>
+                    </div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Dribbled Past / Score</span>
+                    <span class="stat-value">
+                        <span id="stat-{{ stats.id }}-pack_dribbled_past">{{ stats.pack_dribbled_past }}</span>
+                        /
+                        <span id="stat-{{ stats.id }}-pack_dribbled_past_score">{{ stats.pack_dribbled_past_score }}</span>
+                    </span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                
+                <div class="stat-category-title">🥊 Duels</div>
+                <div class="stat-row-pair">
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Aerial Won</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-aerial_duels_won">{{ stats.aerial_duels_won }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'aerial_duels_won')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'aerial_duels_won')">-</button>
+                        </div>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Aerial Lost</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-aerial_duels_lost">{{ stats.aerial_duels_lost }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'aerial_duels_lost')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'aerial_duels_lost')">-</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-row-pair">
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Ground Won</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-ground_duels_won">{{ stats.ground_duels_won }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'ground_duels_won')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'ground_duels_won')">-</button>
+                        </div>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Ground Lost</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-ground_duels_lost">{{ stats.ground_duels_lost }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'ground_duels_lost')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'ground_duels_lost')">-</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="stat-category-title">🛡️ Defense</div>
+                <div class="stat-row-pair">
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Tackles Won</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-tackles_won">{{ stats.tackles_won }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'tackles_won')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'tackles_won')">-</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Interceptions</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-interceptions">{{ stats.interceptions }}</span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'interceptions')">+</button>
+                        <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'interceptions')">-</button>
+                    </div>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Clearances</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-clearances">{{ stats.clearances }}</span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'clearances')">+</button>
+                        <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'clearances')">-</button>
+                    </div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Pressures</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-pressures">{{ stats.pressures }}</span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'pressures')">+</button>
+                        <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'pressures')">-</button>
+                    </div>
+                </div>
+                
+                <div class="stat-category-title outfield-only">🔄 Distribution & Recovery</div>
+                <div class="stat-row-pair outfield-only">
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Successful Crosses</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-successful_crosses">{{ stats.successful_crosses }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'successful_crosses')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'successful_crosses')">-</button>
+                        </div>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Unsuccessful Crosses</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-unsuccessful_crosses">{{ stats.unsuccessful_crosses }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'unsuccessful_crosses')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'unsuccessful_crosses')">-</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-row-pair outfield-only">
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Throw-in Retained</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-throw_in_retained">{{ stats.throw_in_retained }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'throw_in_retained')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'throw_in_retained')">-</button>
+                        </div>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Throw-in Lost</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-throw_in_lost">{{ stats.throw_in_lost }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'throw_in_lost')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'throw_in_lost')">-</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Recoveries</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-recoveries">{{ stats.recoveries }}</span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'recoveries')">+</button>
+                        <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'recoveries')">-</button>
+                    </div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Progressive Runs</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-progressive_runs">{{ stats.progressive_runs }}</span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'progressive_runs')">+</button>
+                        <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'progressive_runs')">-</button>
+                    </div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Touches in Opposition Box</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-touches_in_opposition_box">{{ stats.touches_in_opposition_box }}</span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'touches_in_opposition_box')">+</button>
+                        <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'touches_in_opposition_box')">-</button>
+                    </div>
+                </div>
+
+                <div class="stat-category-title outfield-only">🎯 Shooting</div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Shots on Target</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-shots_on_target">{{ stats.shots_on_target }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Shots off Target</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-shots_off_target">{{ stats.shots_off_target }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Shots Blocked</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-shots_blocked">{{ stats.shots_blocked }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Shots Inside Box</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-shots_inside_box">{{ stats.shots_inside_box }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Shots Outside Box</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-shots_outside_box">{{ stats.shots_outside_box }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">xG Inside Box</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-xG_inside_box">{{ stats.xG_inside_box|round(2) }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">xG Outside Box</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-xG_outside_box">{{ stats.xG_outside_box|round(2) }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Goals</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-goals">{{ stats.goals }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Assists</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-assists">{{ stats.assists }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Chances Created</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-chances_created">{{ stats.chances_created }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Big Chances Created</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-big_chances_created">{{ stats.big_chances_created }}</span>
+                    <div class="stat-buttons" style="visibility: hidden;"></div>
+                </div>
+                <div class="outfield-only" style="margin-top: 0.75rem;">
+                    <button onclick="openShotModal({{ match.id }}, {{ player.id }}, '{{ player.name }}', {{ stats.id }})" style="width: 100%; padding: 0.5rem; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                        📊 Record Shot
+                    </button>
+                </div>
+                <div class="outfield-only" style="margin-top: 0.5rem;">
+                    <button
+                        type="button"
+                        class="stat-btn increment corner-record-btn"
+                        data-match-id="{{ match.id }}"
+                        data-team-id="{{ match.away_team_id }}"
+                        data-team-name="{{ match.away_team.name|e }}"
+                        data-is-main-team="{{ 'true' if not match.main else 'false' }}"
+                        data-taker-id="{{ player.id }}"
+                        data-taker-name="{{ player.name|e }}"
+                        data-team-side="away"
+                        style="width: 100%; padding: 0.5rem; background: #8e44ad; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                        🚩 Record Corner
+                    </button>
+                </div>
+
+                <div class="stat-category-title">🚨 Crime Count</div>
+                <div class="stat-row-pair">
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Fouls</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-fouls_committed">{{ stats.fouls_committed }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'fouls_committed')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'fouls_committed')">-</button>
+                        </div>
+                    </div>
+                    <div class="stat-item-inline">
+                        <span class="stat-label">Fouled</span>
+                        <span class="stat-value" id="stat-{{ stats.id }}-fouls_won">{{ stats.fouls_won }}</span>
+                        <div class="stat-buttons">
+                            <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'fouls_won')">+</button>
+                            <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'fouls_won')">-</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-row outfield-only">
+                    <span class="stat-label">Offsides</span>
+                    <span class="stat-value" id="stat-{{ stats.id }}-offsides">{{ stats.offsides }}</span>
+                    <div class="stat-buttons">
+                        <button class="stat-btn increment" onclick="incrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'offsides')">+</button>
+                        <button class="stat-btn decrement" onclick="decrementStat({{ match.id }}, {{ player.id }}, {{ stats.id }}, 'offsides')">-</button>
+                    </div>
+                </div>
+                </div>
+            </div>
+            {% endfor %}
+    {% endif %}
+</div>
+
+<!-- Pack Pass Modal -->
+<div id="packPassModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 500px; width: 90%;">
+        <h3 style="margin-top: 0;">Record Pack Pass</h3>
+        <p id="modalPasserRow" style="color: #7f8c8d; margin: 0.5rem 0;">Passer: <strong id="modalPasserName"></strong></p>
+        <p id="modalTeamRow" style="color: #7f8c8d; margin: 0.5rem 0; display: none;">Team: <strong id="modalTeamName"></strong> (non-main team)</p>
+        
+        <div id="receiverSection" style="margin: 1.5rem 0;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Receiving Player:</label>
+            <select id="receiverSelect" style="width: 100%; padding: 0.5rem; border: 1px solid #bdc3c7; border-radius: 4px;">
+                <option value="">Select a player...</option>
+            </select>
+        </div>
+        
+        <div style="margin: 1.5rem 0;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Defenders Bypassed:</label>
+            <input type="number" id="defendersInput" min="0" max="11" value="0" style="width: 100%; padding: 0.5rem; border: 1px solid #bdc3c7; border-radius: 4px;">
+        </div>
+        
+        <div style="margin: 1.5rem 0;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Midfielders Bypassed:</label>
+            <input type="number" id="midfieldersInput" min="0" max="11" value="0" style="width: 100%; padding: 0.5rem; border: 1px solid #bdc3c7; border-radius: 4px;">
+        </div>
+        
+        <div style="margin: 1.5rem 0;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Attackers Bypassed:</label>
+            <input type="number" id="attackersInput" min="0" max="10" value="0" style="width: 100%; padding: 0.5rem; border: 1px solid #bdc3c7; border-radius: 4px;">
+        </div>
+        
+        <div style="background: #ecf0f1; padding: 1rem; border-radius: 4px; margin: 1.5rem 0;">
+            <p style="margin: 0; text-align: center; font-size: 1.2rem;">
+                <strong>Pack Pass Score: <span id="scoreDisplay" style="color: #27ae60;">0</span></strong>
+            </p>
+        </div>
+        
+        <div style="display: flex; gap: 1rem;">
+            <button onclick="recordPackPass()" style="flex: 1; padding: 0.75rem; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                Record Pack Pass
+            </button>
+            <button onclick="closePackPassModal()" style="flex: 1; padding: 0.75rem; background: #95a5a6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Pack Turnover Modal -->
+<div id="packTurnoverModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 500px; width: 90%;">
+        <h3 style="margin-top: 0;">Record Pack Turnover</h3>
+        <p style="color: #7f8c8d; margin: 0.5rem 0;">Player: <strong id="modalTurnoverPlayerName"></strong></p>
+        
+        <div style="margin: 1.5rem 0;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Defenders Bypassed:</label>
+            <input type="number" id="turnoverDefendersInput" min="0" max="11" value="0" style="width: 100%; padding: 0.5rem; border: 1px solid #bdc3c7; border-radius: 4px;">
+        </div>
+        
+        <div style="margin: 1.5rem 0;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Midfielders Bypassed:</label>
+            <input type="number" id="turnoverMidfieldersInput" min="0" max="11" value="0" style="width: 100%; padding: 0.5rem; border: 1px solid #bdc3c7; border-radius: 4px;">
+        </div>
+        
+        <div style="margin: 1.5rem 0;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Attackers Bypassed:</label>
+            <input type="number" id="turnoverAttackersInput" min="0" max="10" value="0" style="width: 100%; padding: 0.5rem; border: 1px solid #bdc3c7; border-radius: 4px;">
+        </div>
+        
+        <div style="background: #ecf0f1; padding: 1rem; border-radius: 4px; margin: 1.5rem 0;">
+            <p style="margin: 0; text-align: center; font-size: 1.2rem;">
+                <strong>Pack Turnover Score: <span id="turnoverScoreDisplay" style="color: #e74c3c;">0</span></strong>
+            </p>
+        </div>
+        
+        <div style="display: flex; gap: 1rem;">
+            <button onclick="recordPackTurnover()" style="flex: 1; padding: 0.75rem; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                Record Pack Turnover
+            </button>
+            <button onclick="closePackTurnoverModal()" style="flex: 1; padding: 0.75rem; background: #95a5a6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Pack Dribble Modal -->
+<div id="packDribbleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 560px; width: 92%;">
+        <h3 style="margin-top: 0;">Record Pack Dribble</h3>
+        <p style="color: #7f8c8d; margin: 0.5rem 0;">Dribbler: <strong id="modalDribblerName"></strong></p>
+        <p id="dribbleModalTeamRow" style="color: #7f8c8d; margin: 0.5rem 0; display: none;">Team: <strong id="dribbleModalTeamName"></strong> (non-main team)</p>
+
+        <div id="dribbleMainTeamInputs" style="margin-top: 1rem;">
+            <div style="margin: 1rem 0;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Defenders Bypassed:</label>
+                <input type="number" id="dribbleDefendersInput" min="0" max="11" value="0" style="width: 100%; padding: 0.5rem; border: 1px solid #bdc3c7; border-radius: 4px;">
+            </div>
+
+            <div style="margin: 1rem 0;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Midfielders Bypassed:</label>
+                <input type="number" id="dribbleMidfieldersInput" min="0" max="11" value="0" style="width: 100%; padding: 0.5rem; border: 1px solid #bdc3c7; border-radius: 4px;">
+            </div>
+
+            <div style="margin: 1rem 0;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Attackers Bypassed:</label>
+                <input type="number" id="dribbleAttackersInput" min="0" max="11" value="0" style="width: 100%; padding: 0.5rem; border: 1px solid #bdc3c7; border-radius: 4px;">
+            </div>
+        </div>
+
+        <div id="dribbleNonMainInputs" style="display: none; margin-top: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Main-Team Players Dribbled Past:</label>
+            <select id="dribbledPastPlayersSelect" multiple size="8" style="width: 100%; padding: 0.5rem; border: 1px solid #bdc3c7; border-radius: 4px;"></select>
+            <p style="margin: 0.5rem 0 0; color: #7f8c8d; font-size: 0.85rem;">Hold Ctrl/Cmd to select multiple players.</p>
+        </div>
+
+        <div style="background: #ecf0f1; padding: 1rem; border-radius: 4px; margin: 1.25rem 0;">
+            <p style="margin: 0; text-align: center; font-size: 1.2rem;">
+                <strong>Pack Dribble Score: <span id="dribbleScoreDisplay" style="color: #2980b9;">0</span></strong>
+            </p>
+        </div>
+
+        <div style="display: flex; gap: 1rem;">
+            <button onclick="recordPackDribble()" style="flex: 1; padding: 0.75rem; background: #2980b9; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                Record Pack Dribble
+            </button>
+            <button onclick="closePackDribbleModal()" style="flex: 1; padding: 0.75rem; background: #95a5a6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Shot Recording Modal -->
+<div id="shotModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; padding: 1.25rem; border-radius: 8px; max-width: 760px; width: 94%;">
+        <h3 style="margin: 0;">Record Shot</h3>
+        <p style="color: #7f8c8d; margin: 0.25rem 0 0.75rem 0;">Player: <strong id="modalShotPlayerName"></strong></p>
+        
+        <div style="margin: 0 0 0.75rem 0;">
+            <label style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Shot Type *</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                <label style="padding: 0.45rem; border: 2px solid #bdc3c7; border-radius: 4px; cursor: pointer; text-align: center; font-size: 0.9rem;">
+                    <input type="radio" name="shotType" value="on_target" style="margin-right: 0.5rem;"> On Target
+                </label>
+                <label style="padding: 0.45rem; border: 2px solid #bdc3c7; border-radius: 4px; cursor: pointer; text-align: center; font-size: 0.9rem;">
+                    <input type="radio" name="shotType" value="off_target" style="margin-right: 0.5rem;"> Off Target
+                </label>
+                <label style="padding: 0.45rem; border: 2px solid #bdc3c7; border-radius: 4px; cursor: pointer; text-align: center; font-size: 0.9rem;">
+                    <input type="radio" name="shotType" value="blocked" style="margin-right: 0.5rem;"> Blocked
+                </label>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin: 0 0 0.75rem 0;">
+            <div>
+                <label style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Expected Goals (xG) *</label>
+                <input type="number" id="shot_xG" min="0" step="0.01" value="0.5" placeholder="0.5" style="width: 100%; padding: 0.45rem; border: 1px solid #bdc3c7; border-radius: 4px;">
+            </div>
+        
+            <div>
+                <label style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Veo Clock Time *</label>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <input type="number" id="shot_veo_minutes" min="0" step="1" value="0" style="width: 90px; padding: 0.45rem; border: 1px solid #bdc3c7; border-radius: 4px;">
+                    <span style="color: #7f8c8d; font-size: 0.85rem; white-space: nowrap;">mins</span>
+                    <input type="number" id="shot_veo_seconds" min="0" max="59" step="1" value="0" style="width: 90px; padding: 0.45rem; border: 1px solid #bdc3c7; border-radius: 4px;">
+                    <span style="color: #7f8c8d; font-size: 0.85rem; white-space: nowrap;">secs</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin: 0 0 0.75rem 0;">
+            <label style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Shot Location *</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                <label style="padding: 0.45rem; border: 2px solid #bdc3c7; border-radius: 4px; cursor: pointer; text-align: center; font-size: 0.9rem;">
+                    <input type="radio" name="shotLocation" value="inside" style="margin-right: 0.5rem;"> Inside the box
+                </label>
+                <label style="padding: 0.45rem; border: 2px solid #bdc3c7; border-radius: 4px; cursor: pointer; text-align: center; font-size: 0.9rem;">
+                    <input type="radio" name="shotLocation" value="outside" checked style="margin-right: 0.5rem;"> Outside the box
+                </label>
+            </div>
+        </div>
+
+        <div style="margin: 0 0 0.75rem 0;">
+            <label style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Shot Context *</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.5rem;">
+                <label style="padding: 0.45rem; border: 2px solid #bdc3c7; border-radius: 4px; cursor: pointer; text-align: center; font-size: 0.9rem;">
+                    <input type="radio" name="shotContext" value="open_play" checked style="margin-right: 0.5rem;"> Open Play
+                </label>
+                <label style="padding: 0.45rem; border: 2px solid #bdc3c7; border-radius: 4px; cursor: pointer; text-align: center; font-size: 0.9rem;">
+                    <input type="radio" name="shotContext" value="penalty" style="margin-right: 0.5rem;"> Penalty
+                </label>
+                <label style="padding: 0.45rem; border: 2px solid #bdc3c7; border-radius: 4px; cursor: pointer; text-align: center; font-size: 0.9rem;">
+                    <input type="radio" name="shotContext" value="free_kick" style="margin-right: 0.5rem;"> Free Kick
+                </label>
+                <label style="padding: 0.45rem; border: 2px solid #bdc3c7; border-radius: 4px; cursor: pointer; text-align: center; font-size: 0.9rem;">
+                    <input type="radio" name="shotContext" value="corner" style="margin-right: 0.5rem;"> Corner
+                </label>
+            </div>
+        </div>
+        
+        <div style="margin: 0 0 0.75rem 0;">
+            <label style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Assist Player (Optional)</label>
+            <select id="shot_assist_player" style="width: 100%; padding: 0.45rem; border: 1px solid #bdc3c7; border-radius: 4px;">
+                <option value="">No assist</option>
+                <option value="">--- Home Team ---</option>
+                {% for player in home_players %}
+                <option value="{{ player.id }}">{{ player.name }}</option>
+                {% endfor %}
+                <option value="">--- Away Team ---</option>
+                {% for player in away_players %}
+                <option value="{{ player.id }}">{{ player.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="margin: 0 0 0.9rem 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
+                <input type="checkbox" id="shot_is_goal">
+                Goal
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
+                <input type="checkbox" id="shot_big_chance">
+                Big Chance
+            </label>
+        </div>
+        
+        <div style="display: flex; gap: 1rem;">
+            <button onclick="recordShot()" style="flex: 1; padding: 0.75rem; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                Record Shot
+            </button>
+            <button onclick="closeShotModal()" style="flex: 1; padding: 0.75rem; background: #95a5a6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Corner Recording Modal -->
+<div id="cornerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; padding: 1.25rem; border-radius: 8px; max-width: 700px; width: 94%;">
+        <h3 style="margin: 0;">Record Corner</h3>
+        <p style="color: #7f8c8d; margin: 0.25rem 0 0.75rem 0;">Taker: <strong id="modalCornerTakerName"></strong></p>
+        <p id="cornerModalTeamRow" style="color: #7f8c8d; margin: 0 0 0.75rem 0; display: none;">Team: <strong id="modalCornerTeamName"></strong> (non-main team)</p>
+
+        <div id="cornerWonBySection" style="margin: 0 0 0.75rem 0;">
+            <label style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Player Who Won Corner *</label>
+            <select id="corner_won_by_player" style="width: 100%; padding: 0.45rem; border: 1px solid #bdc3c7; border-radius: 4px;">
+                <option value="">Select player...</option>
+            </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin: 0 0 0.75rem 0;">
+            <div>
+                <label style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Delivery Type *</label>
+                <select id="corner_delivery_type" style="width: 100%; padding: 0.45rem; border: 1px solid #bdc3c7; border-radius: 4px;">
+                    <option value="inswing">Inswing</option>
+                    <option value="outswing">Outswing</option>
+                    <option value="straight">Straight</option>
+                </select>
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Delivery Outcome *</label>
+                <select id="corner_delivery_outcome" style="width: 100%; padding: 0.45rem; border: 1px solid #bdc3c7; border-radius: 4px;">
+                    <option value="successful">Successful</option>
+                    <option value="unsuccessful">Unsuccessful</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="margin: 0 0 0.75rem 0;">
+            <label style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Corner Length *</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                <label style="padding: 0.45rem; border: 2px solid #bdc3c7; border-radius: 4px; cursor: pointer; text-align: center; font-size: 0.9rem;">
+                    <input type="radio" name="cornerLength" value="short" checked style="margin-right: 0.5rem;"> Short
+                </label>
+                <label style="padding: 0.45rem; border: 2px solid #bdc3c7; border-radius: 4px; cursor: pointer; text-align: center; font-size: 0.9rem;">
+                    <input type="radio" name="cornerLength" value="long" style="margin-right: 0.5rem;"> Long
+                </label>
+            </div>
+        </div>
+
+        <div style="margin: 0 0 0.9rem 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
+                <input type="checkbox" id="corner_led_to_shot">
+                Led to Shot
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
+                <input type="checkbox" id="corner_big_chance_created">
+                Big Chance Created
+            </label>
+        </div>
+
+        <div style="display: flex; gap: 1rem;">
+            <button onclick="recordCorner()" style="flex: 1; padding: 0.75rem; background: #8e44ad; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                Record Corner
+            </button>
+            <button onclick="closeCornerModal()" style="flex: 1; padding: 0.75rem; background: #95a5a6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Sidebar Panel Management
+let currentlySelectedPlayer = null;
+
+const homePlayersForPackPass = [
+{% for p in home_players %}
+    { id: {{ p.id }}, name: {{ p.name|tojson }}, number: {{ p.jersey_number|tojson }} }{% if not loop.last %},{% endif %}
+{% endfor %}
+];
+
+const awayPlayersForPackPass = [
+{% for p in away_players %}
+    { id: {{ p.id }}, name: {{ p.name|tojson }}, number: {{ p.jersey_number|tojson }} }{% if not loop.last %},{% endif %}
+{% endfor %}
+];
+
+const positionByPlayerId = {{ position_by_player_id|tojson }};
+
+function getPositionGroup(positionValue) {
+    const normalized = (positionValue || '').trim().toUpperCase();
+    const defenders = new Set(['GK', 'GOALKEEPER', 'RB', 'RWB', 'LB', 'LWB', 'CB', 'LCB', 'RCB', 'SW', 'SWEEPER']);
+    const midfielders = new Set(['CDM', 'LDM', 'RDM', 'CM', 'LCM', 'RCM', 'CAM', 'LAM', 'RAM', 'LM', 'RM']);
+    const attackers = new Set(['LW', 'RW', 'LF', 'RF', 'SS', 'CF', 'ST', 'FORWARD', 'ATTACKER', 'STRIKER', 'WINGER']);
+
+    if (defenders.has(normalized) || normalized.includes('BACK') || normalized.startsWith('CB')) {
+        return 'defender';
+    }
+
+    if (midfielders.has(normalized) || normalized.endsWith('DM') || normalized.endsWith('CM') || normalized.endsWith('AM') || normalized === 'MIDFIELDER') {
+        return 'midfielder';
+    }
+
+    if (attackers.has(normalized)) {
+        return 'attacker';
+    }
+
+    return 'midfielder';
+}
+
+const mainTeamPlayersForDribble = [
+{% for p in main_team_players %}
+    {
+        id: {{ p.id }},
+        name: {{ p.name|tojson }},
+        positionGroup: getPositionGroup(positionByPlayerId['{{ p.id }}'] || {{ (p.position or '')|tojson }})
+    }{% if not loop.last %},{% endif %}
+{% endfor %}
+];
+
+function selectPlayer(team, playerId, playerName, statsId, jersey) {
+    const selectionKey = `${team}-${playerId}`;
+    currentlySelectedPlayer = selectionKey;
+
+    // update active state in sidebar
+    document.querySelectorAll('.player-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    // Highlight the selected player using the ID
+    const selectedElement = document.getElementById(`player-${team}-${playerId}`);
+    if (selectedElement) {
+        selectedElement.classList.add('active');
+    }
+    
+    // Find the template for this player
+    const templates = document.querySelectorAll('.player-stats-template');
+    let found = false;
+    
+    for (let template of templates) {
+        if (template.dataset.playerId == playerId && template.dataset.team === team) {
+            const clone = displayPlayerStats(template);
+            const matchId = template.dataset.matchId;
+
+            refreshPlayerStats(matchId, playerId, statsId, template, clone, selectionKey);
+            found = true;
+            break;
+        }
+    }
+    
+    if (!found) {
+        console.error(`Player stats template not found for player ${playerId}`);
+    }
+}
+
+function displayPlayerStats(template) {
+    const statsPanel = document.getElementById('statsPanel');
+    const isGoalkeeper = template.dataset.isGoalkeeper === 'true';
+    
+    // Clear existing content
+    statsPanel.innerHTML = '';
+    
+    // Clone and display the template content
+    const clone = template.cloneNode(true);
+    clone.classList.remove('hidden');
+
+    clone.querySelectorAll('.outfield-only').forEach(section => {
+        section.style.display = isGoalkeeper ? 'none' : '';
+    });
+
+    clone.querySelectorAll('.goalkeeper-only').forEach(section => {
+        section.style.display = isGoalkeeper ? '' : 'none';
+    });
+    
+    // Remove the data attributes
+    clone.removeAttribute('data-team');
+    clone.removeAttribute('data-player-id');
+    clone.removeAttribute('data-stats-id');
+    clone.removeAttribute('data-player-name');
+    clone.removeAttribute('data-jersey');
+    clone.removeAttribute('data-match-id');
+    clone.removeAttribute('data-is-goalkeeper');
+    
+    // Add the cloned content to the panel
+    statsPanel.appendChild(clone);
+
+    return clone;
+}
+
+function formatStatValue(statName, value) {
+    if (value === null || value === undefined) {
+        return '0';
+    }
+
+    const floatStats = ['xG', 'xG_inside_box', 'xG_outside_box', 'xA'];
+    if (floatStats.includes(statName)) {
+        return Number(value).toFixed(2);
+    }
+
+    return value;
+}
+
+function findStatElement(container, statsId, statName) {
+    if (!container) {
+        return null;
+    }
+
+    let statElement = container.querySelector(`#stat-${statsId}-${statName}`);
+    if (!statElement) {
+        statElement = container.querySelector(`[id$="-${statName}"]`);
+    }
+
+    return statElement;
+}
+
+function setStatValue(container, statsId, statName, value) {
+    const statElement = findStatElement(container, statsId, statName);
+    if (statElement) {
+        statElement.textContent = formatStatValue(statName, value);
+    }
+}
+
+function setSidebarPressureValue(playerId, value) {
+    const sidebarElements = document.querySelectorAll(
+        `#player-home-${playerId} .sidebar-pressure-count, #player-away-${playerId} .sidebar-pressure-count`
+    );
+
+    sidebarElements.forEach(element => {
+        element.textContent = value;
+    });
+}
+
+function applyStatsToContainer(container, statsId, statsData) {
+    if (!container || !statsData) {
+        return;
+    }
+
+    Object.entries(statsData).forEach(([statName, value]) => {
+        setStatValue(container, statsId, statName, value);
+    });
+}
+
+function updateGoalkeeperSummary(container, statsData) {
+    if (!container || !statsData) {
+        return;
+    }
+
+    const savesChip = container.querySelector('[data-gk-summary="saves"]');
+    const holdChip = container.querySelector('[data-gk-summary="hold_pct"]');
+    const passAccChip = container.querySelector('[data-gk-summary="pass_acc"]');
+
+    if (!savesChip || !holdChip || !passAccChip) {
+        return;
+    }
+
+    const shortCompleted = Number(statsData.short_completed_passes || 0);
+    const longCompleted = Number(statsData.long_completed_passes || 0);
+    const shortIncomplete = Number(statsData.short_incomplete_passes || 0);
+    const longIncomplete = Number(statsData.long_incomplete_passes || 0);
+    const saves = Number(statsData.saves || 0);
+    const savesHeld = Number(statsData.saves_held || 0);
+
+    const totalCompleted = shortCompleted + longCompleted;
+    const totalPasses = totalCompleted + shortIncomplete + longIncomplete;
+
+    const passAccuracy = totalPasses > 0 ? (totalCompleted / totalPasses) * 100 : 0;
+    const saveHold = saves > 0 ? (savesHeld / saves) * 100 : 0;
+
+    savesChip.textContent = `${saves}`;
+    holdChip.textContent = `${saveHold.toFixed(1)}%`;
+    passAccChip.textContent = `${passAccuracy.toFixed(1)}%`;
+}
+
+function getNumericStatValue(container, statsId, statName) {
+    if (!container) {
+        return 0;
+    }
+
+    const element = findStatElement(container, statsId, statName);
+    if (!element) {
+        return 0;
+    }
+
+    const value = parseFloat(element.textContent);
+    return Number.isFinite(value) ? value : 0;
+}
+
+function refreshGoalkeeperSummaryFromDom(container, statsId) {
+    const hasGoalkeeperSummary = container && container.querySelector('[data-gk-summary="saves"]');
+    if (!hasGoalkeeperSummary) {
+        return;
+    }
+
+    updateGoalkeeperSummary(container, {
+        short_completed_passes: getNumericStatValue(container, statsId, 'short_completed_passes'),
+        short_incomplete_passes: getNumericStatValue(container, statsId, 'short_incomplete_passes'),
+        long_completed_passes: getNumericStatValue(container, statsId, 'long_completed_passes'),
+        long_incomplete_passes: getNumericStatValue(container, statsId, 'long_incomplete_passes'),
+        saves: getNumericStatValue(container, statsId, 'saves'),
+        saves_held: getNumericStatValue(container, statsId, 'saves_held')
+    });
+}
+
+function refreshPlayerStats(matchId, playerId, statsId, template, clone, selectionKey) {
+    fetch(`/api/matches/${matchId}/stats/${playerId}?t=${Date.now()}`, { cache: 'no-store' })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success || !data.stats) {
+                return;
+            }
+
+            const refreshedStatsId = data.stats.id || statsId;
+            template.dataset.statsId = refreshedStatsId;
+
+            applyStatsToContainer(template, refreshedStatsId, data.stats);
+            updateGoalkeeperSummary(template, data.stats);
+
+            if (currentlySelectedPlayer === selectionKey) {
+                applyStatsToContainer(clone, refreshedStatsId, data.stats);
+                updateGoalkeeperSummary(clone, data.stats);
+            }
+        })
+        .catch(error => console.error('Error refreshing player stats:', error));
+}
+
+function closePlayersPanel() {
+    document.getElementById('statsPanel').innerHTML = '<div class="empty-panel">Select a player to view statistics</div>';
+    document.querySelectorAll('.player-item').forEach(item => {
+        item.classList.remove('active');
+    });
+}
+
+function toggleTeamSection(titleElement) {
+    const playerList = titleElement.nextElementSibling;
+    const isVisible = playerList.style.display !== 'none';
+    
+    if (isVisible) {
+        playerList.style.display = 'none';
+        titleElement.style.opacity = '0.6';
+    } else {
+        playerList.style.display = 'flex';
+        titleElement.style.opacity = '1';
+    }
+}
+
+function incrementStat(matchId, playerId, statsId, statName) {
+    fetch(`/api/matches/${matchId}/stats/${playerId}/increment`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ stat_name: statName })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const statsPanel = document.getElementById('statsPanel');
+            setStatValue(statsPanel, statsId, statName, data.new_value);
+
+            const template = document.querySelector(`.player-stats-template[data-player-id="${playerId}"]`);
+            if (template) {
+                setStatValue(template, statsId, statName, data.new_value);
+            }
+
+            if (statName === 'pressures') {
+                setSidebarPressureValue(playerId, data.new_value);
+            }
+
+            if (data.linked_updates) {
+                Object.entries(data.linked_updates).forEach(([linkedStatName, linkedValue]) => {
+                    setStatValue(statsPanel, statsId, linkedStatName, linkedValue);
+                    if (template) {
+                        setStatValue(template, statsId, linkedStatName, linkedValue);
+                    }
+                });
+            }
+
+            // Update pack_pass_score if it was calculated
+            if (data.pack_pass_score !== undefined) {
+                setStatValue(statsPanel, statsId, 'pack_pass_score', data.pack_pass_score);
+
+                if (template) {
+                    setStatValue(template, statsId, 'pack_pass_score', data.pack_pass_score);
+                }
+            }
+
+            refreshGoalkeeperSummaryFromDom(statsPanel, statsId);
+            if (template) {
+                refreshGoalkeeperSummaryFromDom(template, statsId);
+            }
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function decrementStat(matchId, playerId, statsId, statName) {
+    fetch(`/api/matches/${matchId}/stats/${playerId}/decrement`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ stat_name: statName })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const statsPanel = document.getElementById('statsPanel');
+            setStatValue(statsPanel, statsId, statName, data.new_value);
+
+            const template = document.querySelector(`.player-stats-template[data-player-id="${playerId}"]`);
+            if (template) {
+                setStatValue(template, statsId, statName, data.new_value);
+            }
+
+            if (statName === 'pressures') {
+                setSidebarPressureValue(playerId, data.new_value);
+            }
+
+            if (data.linked_updates) {
+                Object.entries(data.linked_updates).forEach(([linkedStatName, linkedValue]) => {
+                    setStatValue(statsPanel, statsId, linkedStatName, linkedValue);
+                    if (template) {
+                        setStatValue(template, statsId, linkedStatName, linkedValue);
+                    }
+                });
+            }
+
+            // Update pack_pass_score if it was calculated
+            if (data.pack_pass_score !== undefined) {
+                setStatValue(statsPanel, statsId, 'pack_pass_score', data.pack_pass_score);
+
+                if (template) {
+                    setStatValue(template, statsId, 'pack_pass_score', data.pack_pass_score);
+                }
+            }
+
+            refreshGoalkeeperSummaryFromDom(statsPanel, statsId);
+            if (template) {
+                refreshGoalkeeperSummaryFromDom(template, statsId);
+            }
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+// Pack Pass Modal Functions
+let currentModalData = {};
+
+function openPackPassModalFromButton(button) {
+    openPackPassModal(
+        parseInt(button.dataset.matchId, 10),
+        parseInt(button.dataset.teamId, 10),
+        button.dataset.teamName,
+        button.dataset.isMainTeam === 'true',
+        parseInt(button.dataset.passerId, 10),
+        button.dataset.passerName,
+        button.dataset.teamSide
+    );
+}
+
+document.addEventListener('click', function(event) {
+    const button = event.target.closest('.pack-pass-record-btn');
+    if (!button) {
+        return;
+    }
+    event.preventDefault();
+    openPackPassModalFromButton(button);
+});
+
+function openPackPassModal(matchId, teamId, teamName, isMainTeam, passerId, passerName, teamSide) {
+    const mainTeamSelected = isMainTeam === true || isMainTeam === 'true';
+    const availablePlayers = teamSide === 'away' ? awayPlayersForPackPass : homePlayersForPackPass;
+
+    currentModalData = {
+        matchId: matchId,
+        teamId: teamId,
+        isMainTeam: mainTeamSelected,
+        passerId: passerId
+    };
+    
+    document.getElementById('modalPasserName').textContent = passerName;
+    document.getElementById('modalTeamName').textContent = teamName;
+
+    document.getElementById('modalPasserRow').style.display = mainTeamSelected ? 'block' : 'none';
+    document.getElementById('modalTeamRow').style.display = mainTeamSelected ? 'none' : 'block';
+    document.getElementById('receiverSection').style.display = mainTeamSelected ? 'block' : 'none';
+    
+    const receiverSelect = document.getElementById('receiverSelect');
+    receiverSelect.innerHTML = '<option value="">Select a player...</option>';
+    
+    availablePlayers.forEach(player => {
+        const option = document.createElement('option');
+        option.value = player.id;
+        option.textContent = `${player.name} #${player.number ?? '-'}`;
+        receiverSelect.appendChild(option);
+    });
+    
+    // Reset inputs
+    document.getElementById('defendersInput').value = '0';
+    document.getElementById('midfieldersInput').value = '0';
+    document.getElementById('attackersInput').value = '0';
+    document.getElementById('scoreDisplay').textContent = '0';
+    
+    // Add event listeners for score calculation
+    ['defendersInput', 'midfieldersInput', 'attackersInput'].forEach(id => {
+        document.getElementById(id).removeEventListener('change', updatePackPassScore);
+        document.getElementById(id).addEventListener('change', updatePackPassScore);
+    });
+    
+    const modal = document.getElementById('packPassModal');
+    modal.style.display = 'flex';
+}
+
+function closePackPassModal() {
+    const modal = document.getElementById('packPassModal');
+    modal.style.display = 'none';
+}
+
+function updatePackPassScore() {
+    const defenders = parseInt(document.getElementById('defendersInput').value) || 0;
+    const midfielders = parseInt(document.getElementById('midfieldersInput').value) || 0;
+    const attackers = parseInt(document.getElementById('attackersInput').value) || 0;
+    
+    const score = (defenders * 3) + (midfielders * 2) + (attackers * 1);
+    document.getElementById('scoreDisplay').textContent = score;
+}
+
+function recordPackPass() {
+    const receiverId = document.getElementById('receiverSelect').value;
+
+    if (currentModalData.isMainTeam && !receiverId) {
+        alert('Please select a receiving player');
+        return;
+    }
+    
+    const defenders = parseInt(document.getElementById('defendersInput').value) || 0;
+    const midfielders = parseInt(document.getElementById('midfieldersInput').value) || 0;
+    const attackers = parseInt(document.getElementById('attackersInput').value) || 0;
+    
+    const requestBody = {
+        team_id: currentModalData.teamId,
+        passer_id: currentModalData.passerId,
+        receiver_id: currentModalData.isMainTeam ? parseInt(receiverId) : null,
+        defenders: defenders,
+        midfielders: midfielders,
+        attackers: attackers
+    };
+    
+    fetch(`/api/matches/${currentModalData.matchId}/record-pack-pass`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Pack pass recorded! Score: ${data.score}`);
+            closePackPassModal();
+            // Refresh the page to update stats
+            location.reload();
+        } else {
+            alert('Error recording pack pass: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error recording pack pass');
+    });
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('packPassModal');
+    if (event.target === modal) {
+        closePackPassModal();
+    }
+});
+
+// Pack Turnover Modal Functions
+let currentTurnoverModalData = {};
+
+function openPackTurnoverModal(matchId, playerId, playerName) {
+    currentTurnoverModalData = {
+        matchId: matchId,
+        playerId: playerId
+    };
+    
+    document.getElementById('modalTurnoverPlayerName').textContent = playerName;
+    
+    // Reset inputs
+    document.getElementById('turnoverDefendersInput').value = '0';
+    document.getElementById('turnoverMidfieldersInput').value = '0';
+    document.getElementById('turnoverAttackersInput').value = '0';
+    document.getElementById('turnoverScoreDisplay').textContent = '0';
+    
+    // Add event listeners for score calculation
+    ['turnoverDefendersInput', 'turnoverMidfieldersInput', 'turnoverAttackersInput'].forEach(id => {
+        document.getElementById(id).removeEventListener('change', updatePackTurnoverScore);
+        document.getElementById(id).addEventListener('change', updatePackTurnoverScore);
+    });
+    
+    const modal = document.getElementById('packTurnoverModal');
+    modal.style.display = 'flex';
+}
+
+function closePackTurnoverModal() {
+    const modal = document.getElementById('packTurnoverModal');
+    modal.style.display = 'none';
+}
+
+function updatePackTurnoverScore() {
+    const defenders = parseInt(document.getElementById('turnoverDefendersInput').value) || 0;
+    const midfielders = parseInt(document.getElementById('turnoverMidfieldersInput').value) || 0;
+    const attackers = parseInt(document.getElementById('turnoverAttackersInput').value) || 0;
+    
+    const score = (defenders * 3) + (midfielders * 2) + (attackers * 1);
+    document.getElementById('turnoverScoreDisplay').textContent = score;
+}
+
+function recordPackTurnover() {
+    const defenders = parseInt(document.getElementById('turnoverDefendersInput').value) || 0;
+    const midfielders = parseInt(document.getElementById('turnoverMidfieldersInput').value) || 0;
+    const attackers = parseInt(document.getElementById('turnoverAttackersInput').value) || 0;
+    
+    const requestBody = {
+        player_id: currentTurnoverModalData.playerId,
+        defenders: defenders,
+        midfielders: midfielders,
+        attackers: attackers
+    };
+    
+    fetch(`/api/matches/${currentTurnoverModalData.matchId}/record-pack-turnover`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Pack turnover recorded! Score: ${data.score}`);
+            closePackTurnoverModal();
+            // Refresh the page to update stats
+            location.reload();
+        } else {
+            alert('Error recording pack turnover: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error recording pack turnover');
+    });
+}
+
+// Close pack turnover modal when clicking outside
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('packTurnoverModal');
+    if (event.target === modal) {
+        closePackTurnoverModal();
+    }
+});
+
+// Pack Dribble Modal Functions
+let currentDribbleModalData = {};
+
+function openPackDribbleModalFromButton(button) {
+    openPackDribbleModal(
+        parseInt(button.dataset.matchId, 10),
+        parseInt(button.dataset.teamId, 10),
+        button.dataset.teamName,
+        button.dataset.isMainTeam === 'true',
+        parseInt(button.dataset.dribblerId, 10),
+        button.dataset.dribblerName
+    );
+}
+
+document.addEventListener('click', function(event) {
+    const button = event.target.closest('.pack-dribble-record-btn');
+    if (!button) {
+        return;
+    }
+
+    event.preventDefault();
+    openPackDribbleModalFromButton(button);
+});
+
+function openPackDribbleModal(matchId, teamId, teamName, isMainTeam, dribblerId, dribblerName) {
+    currentDribbleModalData = {
+        matchId: matchId,
+        teamId: teamId,
+        isMainTeam: isMainTeam === true || isMainTeam === 'true',
+        dribblerId: dribblerId
+    };
+
+    document.getElementById('modalDribblerName').textContent = dribblerName;
+    document.getElementById('dribbleModalTeamName').textContent = teamName;
+
+    const showMainInputs = currentDribbleModalData.isMainTeam;
+    document.getElementById('dribbleMainTeamInputs').style.display = showMainInputs ? 'block' : 'none';
+    document.getElementById('dribbleNonMainInputs').style.display = showMainInputs ? 'none' : 'block';
+    document.getElementById('dribbleModalTeamRow').style.display = showMainInputs ? 'none' : 'block';
+
+    document.getElementById('dribbleDefendersInput').value = '0';
+    document.getElementById('dribbleMidfieldersInput').value = '0';
+    document.getElementById('dribbleAttackersInput').value = '0';
+
+    const dribbledPastSelect = document.getElementById('dribbledPastPlayersSelect');
+    dribbledPastSelect.innerHTML = '';
+    mainTeamPlayersForDribble.forEach(player => {
+        const option = document.createElement('option');
+        option.value = player.id;
+        option.textContent = `${player.name} (${player.positionGroup})`;
+        option.dataset.positionGroup = player.positionGroup;
+        dribbledPastSelect.appendChild(option);
+    });
+
+    ['dribbleDefendersInput', 'dribbleMidfieldersInput', 'dribbleAttackersInput'].forEach(id => {
+        const input = document.getElementById(id);
+        input.removeEventListener('change', updatePackDribbleScore);
+        input.addEventListener('change', updatePackDribbleScore);
+    });
+
+    dribbledPastSelect.removeEventListener('change', updatePackDribbleScore);
+    dribbledPastSelect.addEventListener('change', updatePackDribbleScore);
+
+    document.getElementById('dribbleScoreDisplay').textContent = '0';
+    document.getElementById('packDribbleModal').style.display = 'flex';
+}
+
+function closePackDribbleModal() {
+    document.getElementById('packDribbleModal').style.display = 'none';
+}
+
+function updatePackDribbleScore() {
+    let defenders = 0;
+    let midfielders = 0;
+    let attackers = 0;
+
+    if (currentDribbleModalData.isMainTeam) {
+        defenders = parseInt(document.getElementById('dribbleDefendersInput').value, 10) || 0;
+        midfielders = parseInt(document.getElementById('dribbleMidfieldersInput').value, 10) || 0;
+        attackers = parseInt(document.getElementById('dribbleAttackersInput').value, 10) || 0;
+    } else {
+        const selectedOptions = Array.from(document.getElementById('dribbledPastPlayersSelect').selectedOptions);
+        selectedOptions.forEach(option => {
+            const group = option.dataset.positionGroup;
+            if (group === 'defender') {
+                defenders += 1;
+            } else if (group === 'midfielder') {
+                midfielders += 1;
+            } else {
+                attackers += 1;
+            }
+        });
+    }
+
+    const score = (defenders * 3) + (midfielders * 2) + attackers;
+    document.getElementById('dribbleScoreDisplay').textContent = `${score}`;
+}
+
+function recordPackDribble() {
+    const requestBody = {
+        team_id: currentDribbleModalData.teamId,
+        dribbler_id: currentDribbleModalData.dribblerId
+    };
+
+    if (currentDribbleModalData.isMainTeam) {
+        requestBody.defenders = parseInt(document.getElementById('dribbleDefendersInput').value, 10) || 0;
+        requestBody.midfielders = parseInt(document.getElementById('dribbleMidfieldersInput').value, 10) || 0;
+        requestBody.attackers = parseInt(document.getElementById('dribbleAttackersInput').value, 10) || 0;
+    } else {
+        const dribbledPastPlayerIds = Array.from(document.getElementById('dribbledPastPlayersSelect').selectedOptions)
+            .map(option => parseInt(option.value, 10))
+            .filter(Number.isFinite);
+
+        if (!dribbledPastPlayerIds.length) {
+            alert('Please select one or more main-team players that were dribbled past');
+            return;
+        }
+
+        requestBody.dribbled_past_player_ids = dribbledPastPlayerIds;
+    }
+
+    fetch(`/api/matches/${currentDribbleModalData.matchId}/record-pack-dribble`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Pack dribble recorded! Score: ${data.score}`);
+            closePackDribbleModal();
+            location.reload();
+        } else {
+            alert('Error recording pack dribble: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error recording pack dribble');
+    });
+}
+
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('packDribbleModal');
+    if (event.target === modal) {
+        closePackDribbleModal();
+    }
+});
+
+// Corner Recording Modal Functions
+let currentCornerModalData = {};
+
+function openCornerModalFromButton(button) {
+    openCornerModal(
+        parseInt(button.dataset.matchId, 10),
+        parseInt(button.dataset.teamId, 10),
+        button.dataset.teamName,
+        button.dataset.isMainTeam === 'true',
+        parseInt(button.dataset.takerId, 10),
+        button.dataset.takerName,
+        button.dataset.teamSide,
+        null
+    );
+}
+
+function openCornerModalForEditFromButton(button) {
+    openCornerModal(
+        parseInt(button.dataset.matchId, 10),
+        parseInt(button.dataset.teamId, 10),
+        button.dataset.teamName,
+        button.dataset.isMainTeam === 'true',
+        parseInt(button.dataset.takerId, 10),
+        button.dataset.takerName,
+        button.dataset.teamSide,
+        {
+            id: parseInt(button.dataset.eventId, 10),
+            wonByPlayerId: button.dataset.wonByPlayerId,
+            deliveryType: button.dataset.deliveryType,
+            deliveryOutcome: button.dataset.deliveryOutcome,
+            deliveryLength: button.dataset.deliveryLength,
+            ledToShot: button.dataset.ledToShot === 'true',
+            bigChanceCreated: button.dataset.bigChanceCreated === 'true'
+        }
+    );
+}
+
+document.addEventListener('click', function(event) {
+    const button = event.target.closest('.corner-record-btn');
+    if (!button) {
+        return;
+    }
+
+    event.preventDefault();
+    openCornerModalFromButton(button);
+});
+
+document.addEventListener('click', function(event) {
+    const button = event.target.closest('.corner-edit-btn');
+    if (!button) {
+        return;
+    }
+
+    event.preventDefault();
+    openCornerModalForEditFromButton(button);
+});
+
+document.addEventListener('click', function(event) {
+    const button = event.target.closest('.corner-delete-btn');
+    if (!button) {
+        return;
+    }
+
+    event.preventDefault();
+
+    const matchId = parseInt(button.dataset.matchId, 10);
+    const eventId = parseInt(button.dataset.eventId, 10);
+
+    if (!confirm('Delete this corner event?')) {
+        return;
+    }
+
+    fetch(`/api/matches/${matchId}/corner-events/${eventId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error deleting corner: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error deleting corner');
+    });
+});
+
+function openCornerModal(matchId, teamId, teamName, isMainTeam, takerId, takerName, teamSide, existingEvent = null) {
+    currentCornerModalData = {
+        matchId: matchId,
+        teamId: teamId,
+        isMainTeam: isMainTeam === true || isMainTeam === 'true',
+        takerId: takerId,
+        eventId: existingEvent ? existingEvent.id : null
+    };
+
+    document.getElementById('modalCornerTakerName').textContent = takerName;
+    document.getElementById('modalCornerTeamName').textContent = teamName;
+
+    const availablePlayers = teamSide === 'away' ? awayPlayersForPackPass : homePlayersForPackPass;
+    const wonBySelect = document.getElementById('corner_won_by_player');
+    wonBySelect.innerHTML = '<option value="">Select player...</option>';
+
+    availablePlayers.forEach(player => {
+        const option = document.createElement('option');
+        option.value = player.id;
+        option.textContent = `${player.name} #${player.number ?? '-'}`;
+        wonBySelect.appendChild(option);
+    });
+
+    const showWonBy = currentCornerModalData.isMainTeam;
+    document.getElementById('cornerWonBySection').style.display = showWonBy ? 'block' : 'none';
+    document.getElementById('cornerModalTeamRow').style.display = showWonBy ? 'none' : 'block';
+
+    document.getElementById('corner_delivery_type').value = existingEvent ? existingEvent.deliveryType : 'inswing';
+    document.getElementById('corner_delivery_outcome').value = existingEvent ? existingEvent.deliveryOutcome : 'successful';
+    const lengthValue = existingEvent ? existingEvent.deliveryLength : 'short';
+    const lengthRadio = document.querySelector(`input[name="cornerLength"][value="${lengthValue}"]`);
+    if (lengthRadio) {
+        lengthRadio.checked = true;
+    }
+    wonBySelect.value = existingEvent ? (existingEvent.wonByPlayerId || '') : '';
+    document.getElementById('corner_led_to_shot').checked = existingEvent ? existingEvent.ledToShot : false;
+    document.getElementById('corner_big_chance_created').checked = existingEvent ? existingEvent.bigChanceCreated : false;
+
+    document.getElementById('cornerModal').style.display = 'flex';
+}
+
+function closeCornerModal() {
+    document.getElementById('cornerModal').style.display = 'none';
+}
+
+function recordCorner() {
+    const deliveryType = document.getElementById('corner_delivery_type').value;
+    const deliveryOutcome = document.getElementById('corner_delivery_outcome').value;
+    const cornerLength = document.querySelector('input[name="cornerLength"]:checked');
+    const wonByPlayerId = document.getElementById('corner_won_by_player').value;
+    const ledToShot = document.getElementById('corner_led_to_shot').checked;
+    const bigChanceCreated = document.getElementById('corner_big_chance_created').checked;
+
+    if (!cornerLength) {
+        alert('Please select corner length');
+        return;
+    }
+
+    if (currentCornerModalData.isMainTeam && !wonByPlayerId) {
+        alert('Please select the player who won the corner');
+        return;
+    }
+
+    const requestBody = {
+        team_id: currentCornerModalData.teamId,
+        taker_player_id: currentCornerModalData.takerId,
+        won_by_player_id: currentCornerModalData.isMainTeam ? parseInt(wonByPlayerId, 10) : null,
+        delivery_type: deliveryType,
+        delivery_outcome: deliveryOutcome,
+        delivery_length: cornerLength.value,
+        led_to_shot: ledToShot,
+        big_chance_created: bigChanceCreated
+    };
+
+    const isEdit = !!currentCornerModalData.eventId;
+    const url = isEdit
+        ? `/api/matches/${currentCornerModalData.matchId}/corner-events/${currentCornerModalData.eventId}`
+        : `/api/matches/${currentCornerModalData.matchId}/record-corner`;
+
+    fetch(url, {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(isEdit ? 'Corner updated successfully' : 'Corner recorded successfully');
+            closeCornerModal();
+            location.reload();
+        } else {
+            alert(`Error ${isEdit ? 'updating' : 'recording'} corner: ` + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error recording corner');
+    });
+}
+
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('cornerModal');
+    if (event.target === modal) {
+        closeCornerModal();
+    }
+});
+
+// Shot Recording Modal Functions
+let currentShotModalData = {};
+
+function getDefaultXgForShotContext(context) {
+    if (context === 'penalty') {
+        return '0.79';
+    }
+    if (context === 'corner') {
+        return '0.016';
+    }
+    return '0.5';
+}
+
+function applyShotContextDefaultXg() {
+    const selectedContext = document.querySelector('input[name="shotContext"]:checked');
+    const xgInput = document.getElementById('shot_xG');
+    if (!selectedContext || !xgInput) {
+        return;
+    }
+
+    xgInput.value = getDefaultXgForShotContext(selectedContext.value);
+}
+
+document.querySelectorAll('input[name="shotContext"]').forEach(radio => {
+    radio.addEventListener('change', applyShotContextDefaultXg);
+});
+
+function openShotModal(matchId, playerId, playerName, statsId) {
+    currentShotModalData = {
+        matchId: matchId,
+        playerId: playerId,
+        statsId: statsId
+    };
+    
+    document.getElementById('modalShotPlayerName').textContent = playerName;
+    
+    // Reset inputs
+    document.querySelector('input[name="shotType"]:checked')?.click();
+    document.getElementById('shot_xG').value = '0.5';
+    document.getElementById('shot_veo_minutes').value = '0';
+    document.getElementById('shot_veo_seconds').value = '0';
+    const outsideLocationRadio = document.querySelector('input[name="shotLocation"][value="outside"]');
+    if (outsideLocationRadio) {
+        outsideLocationRadio.checked = true;
+    }
+    const openPlayContextRadio = document.querySelector('input[name="shotContext"][value="open_play"]');
+    if (openPlayContextRadio) {
+        openPlayContextRadio.checked = true;
+    }
+    applyShotContextDefaultXg();
+    document.getElementById('shot_assist_player').value = '';
+    document.getElementById('shot_is_goal').checked = false;
+    document.getElementById('shot_big_chance').checked = false;
+    
+    // Remove the current player from assist options
+    const assistSelect = document.getElementById('shot_assist_player');
+    Array.from(assistSelect.options).forEach(option => {
+        if (option.value == playerId) {
+            option.disabled = true;
+            option.style.color = '#95a5a6';
+        } else if (option.value) {
+            option.disabled = false;
+            option.style.color = '';
+        }
+    });
+    
+    const modal = document.getElementById('shotModal');
+    modal.style.display = 'flex';
+}
+
+function closeShotModal() {
+    const modal = document.getElementById('shotModal');
+    modal.style.display = 'none';
+}
+
+function recordShot() {
+    const shotType = document.querySelector('input[name="shotType"]:checked');
+    const shotLocation = document.querySelector('input[name="shotLocation"]:checked');
+    const shotContext = document.querySelector('input[name="shotContext"]:checked');
+    const xG = parseFloat(document.getElementById('shot_xG').value) || 0;
+    const veoMinutesRaw = document.getElementById('shot_veo_minutes').value;
+    const veoSecondsRaw = document.getElementById('shot_veo_seconds').value;
+    const assistPlayerId = document.getElementById('shot_assist_player').value;
+    const isGoal = document.getElementById('shot_is_goal').checked;
+    const isBigChance = document.getElementById('shot_big_chance').checked;
+    
+    if (!shotType) {
+        alert('Please select a shot type');
+        return;
+    }
+
+    if (!shotLocation) {
+        alert('Please select shot location');
+        return;
+    }
+
+    if (!shotContext) {
+        alert('Please select shot context');
+        return;
+    }
+
+    const veoMinutes = parseInt(veoMinutesRaw, 10);
+    const veoSeconds = parseInt(veoSecondsRaw, 10);
+
+    if (Number.isNaN(veoMinutes) || veoMinutes < 0) {
+        alert('Please enter valid Veo minutes (0 or greater)');
+        return;
+    }
+
+    if (Number.isNaN(veoSeconds) || veoSeconds < 0 || veoSeconds > 59) {
+        alert('Please enter valid Veo seconds (0 to 59)');
+        return;
+    }
+
+    const insideBox = shotLocation.value === 'inside';
+    const veoTime = `${String(veoMinutes).padStart(2, '0')}:${String(veoSeconds).padStart(2, '0')}`;
+    const veoSecondsTotal = (veoMinutes * 60) + veoSeconds;
+    
+    const requestBody = {
+        player_id: currentShotModalData.playerId,
+        shot_type: shotType.value,
+        xG: xG,
+        inside_box: insideBox,
+        shot_context: shotContext.value,
+        assist_player_id: assistPlayerId || null,
+        veo_seconds: veoSecondsTotal,
+        is_goal: isGoal,
+        big_chance: isBigChance
+    };
+    
+    fetch(`/api/matches/${currentShotModalData.matchId}/record-shot`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let message = `Shot recorded!\nType: ${data.shot_type}\nxG: ${data.xG}`;
+            message += `\nVeo Time: ${data.veo_time || veoTime}`;
+            message += `\nLocation: ${data.inside_box ? 'Inside box' : 'Outside box'}`;
+            if (data.big_chance) {
+                message += `\nBig chance: Yes`;
+            }
+            if (data.is_goal) {
+                message += `\n🎉 GOAL!`;
+            }
+            if (data.assist) {
+                message += `\nAssist recorded (xA: ${data.assist.xA}, chances created: ${data.assist.chances_created}, big chances created: ${data.assist.big_chances_created})`;
+            }
+            alert(message);
+            closeShotModal();
+            // Refresh the page to update stats
+            location.reload();
+        } else {
+            alert('Error recording shot: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error recording shot');
+    });
+}
+
+// Close shot modal when clicking outside
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('shotModal');
+    if (event.target === modal) {
+        closeShotModal();
+    }
+});
+</script>
+{% endblock %}

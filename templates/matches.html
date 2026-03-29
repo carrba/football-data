@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Matches - Football Data Recorder{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>All Matches</h2>
+    <div class="actions">
+        <a href="{{ url_for('new_match') }}" class="btn">Record New Match</a>
+    </div>
+</div>
+
+{% if matches %}
+<table>
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Home Team</th>
+            <th>Score</th>
+            <th>Away Team</th>
+            <th>Main</th>
+            <th>Competition</th>
+            <th>Venue</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for match in matches %}
+        <tr>
+            <td>{{ match.match_date.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td>{{ match.home_team.name }} {% if match.main %}(main){% endif %}</td>
+            <td><strong>{{ match.home_score }} - {{ match.away_score }}</strong></td>
+            <td>{{ match.away_team.name }} {% if not match.main %}(main){% endif %}</td>
+            <td>
+                
+            </td>
+            <td>{{ match.competition or '-' }}</td>
+            <td>{{ match.venue or '-' }}</td>
+            <td>
+                <a href="{{ url_for('match_detail', match_id=match.id) }}" class="btn btn-secondary">View</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="card">
+    <p>No matches recorded yet. <a href="{{ url_for('new_match') }}">Record your first match!</a></p>
+</div>
+{% endif %}
+{% endblock %}

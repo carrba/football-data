@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block title %}Match Detail - Football Data Recorder{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>{{ match.home_team.name }} vs {{ match.away_team.name }}</h2>
+    <h1 style="text-align: center; margin: 1rem 0; font-size: 3rem; color: #2c3e50;">
+        {{ match.home_score }} - {{ match.away_score }}
+    </h1>
+    <p style="text-align: center; margin-top: -0.25rem; color: #7f8c8d; font-size: 0.95rem;">
+        {% if match.main %}
+        {{ match.home_team.name }} <strong>(main)</strong>
+        {% else %}
+        {{ match.away_team.name }} <strong>(main)</strong>
+        {% endif %}
+    </p>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
+        <div>
+            <p><strong>Date:</strong> {{ match.match_date.strftime('%Y-%m-%d %H:%M') }}</p>
+            <p><strong>Venue:</strong> {{ match.venue or 'N/A' }}</p>
+            <p><strong>Surface:</strong> {{ match.surface or 'N/A' }}</p>
+            <p><strong>Competition:</strong> {{ match.competition or 'N/A' }}</p>
+        </div>
+        <div>
+            <p><strong>Season:</strong> {{ match.season or 'N/A' }}</p>
+            <p><strong>Home Formation:</strong> {{ match.home_formation or 'N/A' }}</p>
+            <p><strong>Away Formation:</strong> {{ match.away_formation or 'N/A' }}</p>
+        </div>
+    </div>
+
+    <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 4px;">
+        <form method="POST" action="{{ url_for('set_main_team', match_id=match.id) }}">
+            <p style="margin-bottom: 0.5rem;"><strong>Main Team</strong></p>
+            <label style="margin-right: 1rem;">
+                <input type="radio" name="main_team" value="home" {% if match.main %}checked{% endif %}>
+                {{ match.home_team.name }} {% if match.main %}(main){% endif %}
+            </label>
+            <label style="margin-right: 1rem;">
+                <input type="radio" name="main_team" value="away" {% if not match.main %}checked{% endif %}>
+                {{ match.away_team.name }} {% if not match.main %}(main){% endif %}
+            </label>
+            <button type="submit" class="btn btn-secondary">Save Main Team</button>
+        </form>
+    </div>
+    
+    {% if match.notes %}
+    <div style="margin-top: 1rem;">
+        <p><strong>Notes:</strong></p>
+        <p style="background: #f8f9fa; padding: 1rem; border-radius: 4px;">{{ match.notes }}</p>
+    </div>
+    {% endif %}
+    
+    <div class="actions">
+        <a href="{{ url_for('match_lineup', match_id=match.id) }}" class="btn">👥 Starting Lineups</a>
+        <a href="{{ url_for('match_stats', match_id=match.id) }}" class="btn">📊 Record Player Stats</a>
+        <a href="{{ url_for('match_spreadsheet', match_id=match.id) }}" class="btn">📋 View Stats Spreadsheet</a>
+        <a href="{{ url_for('export_match_team_summary_pdf', match_id=match.id) }}" class="btn">⬇️ Export Team Summary PDF</a>
+        <a href="{{ url_for('export_player_match_summary_pdf', match_id=match.id) }}" class="btn">⬇️ Export Player Match Summary PDF</a>
+        <a href="{{ url_for('edit_match', match_id=match.id) }}" class="btn">Edit Match</a>
+        <form method="POST" action="{{ url_for('delete_match', match_id=match.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this match and ALL associated data? This cannot be undone.');">
+            <button type="submit" class="btn btn-danger">🗑️ Delete Match</button>
+        </form>
+        <a href="{{ url_for('matches') }}" class="btn btn-secondary">Back to Matches</a>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Match Events</h3>
+    
+    {% if events %}
+    <table>
+        <thead>
+            <tr>
+                <th>Minute</th>
+                <th>Event Type</th>
+                <th>Player</th>
+                <th>Description</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in events %}
+            <tr>
+                <td>{{ event.minute }}'</td>
+                <td>
+                    {% if event.event_type == 'goal' %}⚽ Goal
+                    {% elif event.event_type == 'yellow_card' %}🟨 Yellow Card
+                    {% elif event.event_type == 'red_card' %}🟥 Red Card
+                    {% elif event.event_type == 'substitution' %}🔄 Substitution
+                    {% elif event.event_type == 'substitute_off' %}⬇️ Substitute Off
+                    {% elif event.event_type == 'substitute_on' %}⬆️ Substitute On
+                    {% elif event.event_type == 'veo_1st_half_start' %}🎥 Veo 1st Half Start
+                    {% elif event.event_type == 'veo_1st_half_stop' %}⏸️ Veo 1st Half Stop
+                    {% elif event.event_type == 'veo_2nd_half_start' %}🎥 Veo 2nd Half Start
+                    {% elif event.event_type == 'veo_2nd_half_stop' %}⏸️ Veo 2nd Half Stop
+                    {% else %}{{ event.event_type }}{% endif %}
+                </td>
+                <td>{{ event.player.name if event.player else 'N/A' }}</td>
+                <td>{{ event.description or '-' }}</td>
+                <td>
+                    <form method="POST" action="{{ url_for('delete_match_event', match_id=match.id, event_id=event.id) }}" onsubmit="return confirm('Delete this event?');">
+                        <button type="submit" class="btn btn-danger btn-small">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No events recorded for this match yet.</p>
+    {% endif %}
+    
+    <h4 style="margin-top: 2rem;">Add Event</h4>
+    <form method="POST" action="{{ url_for('add_match_event', match_id=match.id) }}">
+        <div style="display: grid; grid-template-columns: 1fr 2fr 2fr; gap: 1rem;">
+            <div class="form-group">
+                <label for="minute">Minute *</label>
+                <input type="number" id="minute" name="minute" min="0" max="120" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="event_type">Event Type *</label>
+                <select id="event_type" name="event_type" required onchange="toggleSubstitutionFields()">
+                    <option value="yellow_card">🟨 Yellow Card</option>
+                    <option value="red_card">🟥 Red Card</option>
+                    <option value="substitution">🔄 Substitution</option>
+                    <option value="veo_1st_half_start">🎥 Veo 1st Half Start Time</option>
+                    <option value="veo_1st_half_stop">⏸️ Veo 1st Half Stop Time</option>
+                    <option value="veo_2nd_half_start">🎥 Veo 2nd Half Start Time</option>
+                    <option value="veo_2nd_half_stop">⏸️ Veo 2nd Half Stop Time</option>
+                </select>
+            </div>
+            
+            <div class="form-group" id="player_field" style="display: none;">
+                <label for="player_name_input">Player Name *</label>
+                <input type="text" id="player_name_input" name="player_name" list="match_players" placeholder="Start typing player name" oninput="syncCardPlayerId()" autocomplete="off">
+                <input type="hidden" id="player_id" name="player_id">
+                <datalist id="match_players">
+                    {% for player in home_players %}
+                    <option value="{{ player.name }}" data-player-id="{{ player.id }}">#{{ player.jersey_number or '?' }} {{ player.name }} ({{ match.home_team.name }})</option>
+                    {% endfor %}
+                    {% for player in away_players %}
+                    <option value="{{ player.name }}" data-player-id="{{ player.id }}">#{{ player.jersey_number or '?' }} {{ player.name }} ({{ match.away_team.name }})</option>
+                    {% endfor %}
+                </datalist>
+            </div>
+        </div>
+        
+        <div id="substitution_fields" style="display: none; margin-top: 1rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label for="player_off_id">Player Off *</label>
+                    <select id="player_off_id" name="player_off_id">
+                        <option value="">-- Select Player Off --</option>
+                        <optgroup label="{{ match.home_team.name }}">
+                            {% for player in home_players %}
+                            <option value="{{ player.id }}">#{{ player.jersey_number or '?' }} {{ player.name }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        <optgroup label="{{ match.away_team.name }}">
+                            {% for player in away_players %}
+                            <option value="{{ player.id }}">#{{ player.jersey_number or '?' }} {{ player.name }}</option>
+                            {% endfor %}
+                        </optgroup>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="player_on_id">Player On *</label>
+                    <select id="player_on_id" name="player_on_id">
+                        <option value="">-- Select Player On --</option>
+                        <optgroup label="{{ match.home_team.name }}">
+                            {% for player in home_players %}
+                            <option value="{{ player.id }}">#{{ player.jersey_number or '?' }} {{ player.name }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        <optgroup label="{{ match.away_team.name }}">
+                            {% for player in away_players %}
+                            <option value="{{ player.id }}">#{{ player.jersey_number or '?' }} {{ player.name }}</option>
+                            {% endfor %}
+                        </optgroup>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <button type="submit" class="btn" style="margin-top: 1rem;">Add Event</button>
+    </form>
+    
+    <script>
+    function syncCardPlayerId() {
+        const playerNameInput = document.getElementById('player_name_input');
+        const playerIdInput = document.getElementById('player_id');
+        const options = document.querySelectorAll('#match_players option');
+        const inputValue = (playerNameInput.value || '').trim().toLowerCase();
+
+        let matchedId = '';
+        options.forEach(option => {
+            if ((option.value || '').trim().toLowerCase() === inputValue && !matchedId) {
+                matchedId = option.dataset.playerId || '';
+            }
+        });
+
+        playerIdInput.value = matchedId;
+    }
+
+    function toggleSubstitutionFields() {
+        const eventType = document.getElementById('event_type').value;
+        const playerField = document.getElementById('player_field');
+        const substitutionFields = document.getElementById('substitution_fields');
+        const playerNameInput = document.getElementById('player_name_input');
+        const playerIdInput = document.getElementById('player_id');
+        const playerOffInput = document.getElementById('player_off_id');
+        const playerOnInput = document.getElementById('player_on_id');
+        
+        if (eventType === 'substitution') {
+            playerField.style.display = 'none';
+            substitutionFields.style.display = 'block';
+            playerNameInput.required = false;
+            playerNameInput.value = '';
+            playerIdInput.value = '';
+            playerOffInput.required = true;
+            playerOnInput.required = true;
+        } else if (eventType === 'yellow_card' || eventType === 'red_card') {
+            playerField.style.display = 'block';
+            substitutionFields.style.display = 'none';
+            playerNameInput.required = true;
+            playerOffInput.required = false;
+            playerOnInput.required = false;
+        } else {
+            playerField.style.display = 'none';
+            substitutionFields.style.display = 'none';
+            playerNameInput.required = false;
+            playerNameInput.value = '';
+            playerIdInput.value = '';
+            playerOffInput.required = false;
+            playerOnInput.required = false;
+        }
+    }
+
+    toggleSubstitutionFields();
+    </script>
+</div>
+
+{% if lineup_minutes %}
+<div class="card">
+    <h3>⏱️ Minutes Played Summary</h3>
+    
+    {% if total_match_minutes %}
+    <p style="background: #e8f4f8; padding: 0.75rem; border-radius: 4px; margin-bottom: 1.5rem;">
+        <strong>Total Match Duration:</strong> {{ total_match_minutes }} minutes
+        {% if half_minutes %}
+        (1st Half: {{ half_minutes.first }} min, 2nd Half: {{ half_minutes.second }} min)
+        {% endif %}
+    </p>
+    {% endif %}
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+        <div>
+            <h4>{{ match.home_team.name }}</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Position</th>
+                        <th>#</th>
+                        <th>Player</th>
+                        <th>Minutes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for player_data in lineup_minutes.home %}
+                    <tr>
+                        <td>{{ player_data.position }}</td>
+                        <td>{{ player_data.shirt_number or '-' }}</td>
+                        <td>{{ player_data.player_name }}</td>
+                        <td><strong>{{ player_data.minutes }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div>
+            <h4>{{ match.away_team.name }}</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Position</th>
+                        <th>#</th>
+                        <th>Player</th>
+                        <th>Minutes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for player_data in lineup_minutes.away %}
+                    <tr>
+                        <td>{{ player_data.position }}</td>
+                        <td>{{ player_data.shirt_number or '-' }}</td>
+                        <td>{{ player_data.player_name }}</td>
+                        <td><strong>{{ player_data.minutes }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    {% if not total_match_minutes %}
+    <p style="color: #666; font-style: italic; margin-top: 1rem;">
+        ℹ️ Record all 4 Veo timing events (1st Half Start/Stop, 2nd Half Start/Stop) to calculate total match duration.
+    </p>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

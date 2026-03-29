@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}{% if match %}Edit Match{% else %}New Match{% endif %} - Football Data Recorder{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>{% if match %}Edit Match{% else %}Record New Match{% endif %}</h2>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label for="home_team_id">Home Team *</label>
+            <select id="home_team_id" name="home_team_id" required>
+                <option value="">Select a team...</option>
+                {% for team in teams %}
+                <option value="{{ team.id }}" {% if match and match.home_team_id == team.id %}selected{% endif %}>
+                    {{ team.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="away_team_id">Away Team *</label>
+            <select id="away_team_id" name="away_team_id" required>
+                <option value="">Select a team...</option>
+                {% for team in teams %}
+                <option value="{{ team.id }}" {% if match and match.away_team_id == team.id %}selected{% endif %}>
+                    {{ team.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Main Team *</label>
+            <div style="display: flex; gap: 1rem; align-items: center; margin-top: 0.4rem;">
+                <label>
+                    <input type="radio" name="main_team" value="home" {% if not match or match.main %}checked{% endif %}>
+                    Home Team {% if not match or match.main %}(main){% endif %}
+                </label>
+                <label>
+                    <input type="radio" name="main_team" value="away" {% if match and not match.main %}checked{% endif %}>
+                    Away Team {% if match and not match.main %}(main){% endif %}
+                </label>
+            </div>
+        </div>
+        
+        <p style="margin: 0.5rem 0 1rem; color: #7f8c8d; font-size: 0.9rem;">
+            Match score is calculated automatically from player goal stats.
+        </p>
+        
+        <div class="form-group">
+            <label for="match_date">Match Date & Time *</label>
+            <input type="datetime-local" id="match_date" name="match_date" 
+                   value="{{ match.match_date.strftime('%Y-%m-%dT%H:%M') if match else '' }}" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="venue">Venue</label>
+            <input type="text" id="venue" name="venue" 
+                   value="{{ match.venue if match else '' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="surface">Surface</label>
+            <select id="surface" name="surface">
+                <option value="">Select surface...</option>
+                <option value="Grass" {% if match and match.surface == 'Grass' %}selected{% endif %}>Grass</option>
+                <option value="Astro" {% if match and match.surface == 'Astro' %}selected{% endif %}>Astro</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="competition">Competition</label>
+            <input type="text" id="competition" name="competition" 
+                   value="{{ match.competition if match else '' }}" 
+                   placeholder="e.g., Premier League, Champions League">
+        </div>
+        
+        <div class="form-group">
+            <label for="season">Season</label>
+            <input type="text" id="season" name="season" 
+                   value="{{ match.season if match else '' }}" 
+                   placeholder="e.g., 2025/2026">
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+                <label for="home_formation">Home Formation</label>
+                <select id="home_formation" name="home_formation">
+                    <option value="">Select formation...</option>
+                    <option value="4-4-2" {% if match and match.home_formation == '4-4-2' %}selected{% endif %}>4-4-2</option>
+                    <option value="4-3-3" {% if match and match.home_formation == '4-3-3' %}selected{% endif %}>4-3-3</option>
+                    <option value="4-2-3-1" {% if match and match.home_formation == '4-2-3-1' %}selected{% endif %}>4-2-3-1</option>
+                    <option value="3-5-2" {% if match and match.home_formation == '3-5-2' %}selected{% endif %}>3-5-2</option>
+                    <option value="3-4-3" {% if match and match.home_formation == '3-4-3' %}selected{% endif %}>3-4-3</option>
+                    <option value="5-3-2" {% if match and match.home_formation == '5-3-2' %}selected{% endif %}>5-3-2</option>
+                    <option value="4-1-4-1" {% if match and match.home_formation == '4-1-4-1' %}selected{% endif %}>4-1-4-1</option>
+                    <option value="4-5-1" {% if match and match.home_formation == '4-5-1' %}selected{% endif %}>4-5-1</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="away_formation">Away Formation</label>
+                <select id="away_formation" name="away_formation">
+                    <option value="">Select formation...</option>
+                    <option value="4-4-2" {% if match and match.away_formation == '4-4-2' %}selected{% endif %}>4-4-2</option>
+                    <option value="4-3-3" {% if match and match.away_formation == '4-3-3' %}selected{% endif %}>4-3-3</option>
+                    <option value="4-2-3-1" {% if match and match.away_formation == '4-2-3-1' %}selected{% endif %}>4-2-3-1</option>
+                    <option value="3-5-2" {% if match and match.away_formation == '3-5-2' %}selected{% endif %}>3-5-2</option>
+                    <option value="3-4-3" {% if match and match.away_formation == '3-4-3' %}selected{% endif %}>3-4-3</option>
+                    <option value="5-3-2" {% if match and match.away_formation == '5-3-2' %}selected{% endif %}>5-3-2</option>
+                    <option value="4-1-4-1" {% if match and match.away_formation == '4-1-4-1' %}selected{% endif %}>4-1-4-1</option>
+                    <option value="4-5-1" {% if match and match.away_formation == '4-5-1' %}selected{% endif %}>4-5-1</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="notes">Notes</label>
+            <textarea id="notes" name="notes">{{ match.notes if match else '' }}</textarea>
+        </div>
+        
+        <div class="actions">
+            <button type="submit" class="btn">Save Match</button>
+            <a href="{{ url_for('matches') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

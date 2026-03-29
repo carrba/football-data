@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Match Detail - Football Data Recorder{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>{{ match.home_team.name }} vs {{ match.away_team.name }}</h2>
+    <h1 style="text-align: center; margin: 1rem 0; font-size: 3rem; color: #2c3e50;">
+        {{ match.home_score }} - {{ match.away_score }}
+    </h1>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
+        <div>
+            <p><strong>Date:</strong> {{ match.match_date.strftime('%Y-%m-%d %H:%M') }}</p>
+            <p><strong>Venue:</strong> {{ match.venue or 'N/A' }}</p>
+            <p><strong>Surface:</strong> {{ match.surface or 'N/A' }}</p>
+            <p><strong>Competition:</strong> {{ match.competition or 'N/A' }}</p>
+        </div>
+        <div>
+            <p><strong>Season:</strong> {{ match.season or 'N/A' }}</p>
+            <p><strong>Home Formation:</strong> {{ match.home_formation or 'N/A' }}</p>
+            <p><strong>Away Formation:</strong> {{ match.away_formation or 'N/A' }}</p>
+        </div>
+    </div>
+    
+    {% if match.notes %}
+    <div style="margin-top: 1rem;">
+        <p><strong>Notes:</strong></p>
+        <p style="background: #f8f9fa; padding: 1rem; border-radius: 4px;">{{ match.notes }}</p>
+    </div>
+    {% endif %}
+    
+    <div class="actions">
+        <a href="{{ url_for('match_lineup', match_id=match.id) }}" class="btn">👥 Starting Lineups</a>
+        <a href="{{ url_for('edit_match', match_id=match.id) }}" class="btn">Edit Match</a>
+        <a href="{{ url_for('matches') }}" class="btn btn-secondary">Back to Matches</a>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Match Events</h3>
+    
+    {% if events %}
+    <table>
+        <thead>
+            <tr>
+                <th>Minute</th>
+                <th>Event Type</th>
+                <th>Player</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in events %}
+            <tr>
+                <td>{{ event.minute }}'</td>
+                <td>
+                    {% if event.event_type == 'goal' %}⚽ Goal
+                    {% elif event.event_type == 'yellow_card' %}🟨 Yellow Card
+                    {% elif event.event_type == 'red_card' %}🟥 Red Card
+                    {% elif event.event_type == 'substitution' %}🔄 Substitution
+                    {% else %}{{ event.event_type }}{% endif %}
+                </td>
+                <td>{{ event.player.name if event.player else 'N/A' }}</td>
+                <td>{{ event.description or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No events recorded for this match yet.</p>
+    {% endif %}
+    
+    <h4 style="margin-top: 2rem;">Add Event</h4>
+    <form method="POST" action="{{ url_for('add_match_event', match_id=match.id) }}">
+        <div style="display: grid; grid-template-columns: 1fr 2fr 2fr; gap: 1rem;">
+            <div class="form-group">
+                <label for="minute">Minute *</label>
+                <input type="number" id="minute" name="minute" min="0" max="120" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="event_type">Event Type *</label>
+                <select id="event_type" name="event_type" required>
+                    <option value="goal">⚽ Goal</option>
+                    <option value="yellow_card">🟨 Yellow Card</option>
+                    <option value="red_card">🟥 Red Card</option>
+                    <option value="substitution">🔄 Substitution</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Description</label>
+                <input type="text" id="description" name="description" 
+                       placeholder="e.g., Penalty, Own goal">
+            </div>
+        </div>
+        
+        <button type="submit" class="btn">Add Event</button>
+    </form>
+</div>
+{% endblock %}

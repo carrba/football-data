@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}{% if player %}Edit Player - Football Data Recorder{% else %}New Player - Football Data Recorder{% endif %}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>{% if player %}Edit Player{% else %}Add New Player{% endif %}</h2>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label for="name">Player Name *</label>
+            <input type="text" id="name" name="name" value="{{ player.name if player else '' }}" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="team_id">Team</label>
+            <select id="team_id" name="team_id">
+                <option value="">Select a team...</option>
+                {% for team in teams %}
+                <option value="{{ team.id }}" {% if player and player.team_id == team.id %}selected{% endif %}>{{ team.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+                <label for="position">Position</label>
+                <select id="position" name="position">
+                    <option value="">Select position...</option>
+                    <option value="Goalkeeper" {% if player and player.position == 'Goalkeeper' %}selected{% endif %}>Goalkeeper</option>
+                    <option value="Defender" {% if player and player.position == 'Defender' %}selected{% endif %}>Defender</option>
+                    <option value="Midfielder" {% if player and player.position == 'Midfielder' %}selected{% endif %}>Midfielder</option>
+                    <option value="Forward" {% if player and player.position == 'Forward' %}selected{% endif %}>Forward</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="jersey_number">Jersey Number</label>
+                <input type="number" id="jersey_number" name="jersey_number" min="1" max="99" value="{{ player.jersey_number if player else '' }}">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="date_of_birth">Date of Birth</label>
+            <input type="date" id="date_of_birth" name="date_of_birth" value="{{ player.date_of_birth.strftime('%Y-%m-%d') if player and player.date_of_birth else '' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="nationality">Nationality</label>
+            <input type="text" id="nationality" name="nationality" value="{{ player.nationality if player else '' }}">
+        </div>
+        
+        <div class="actions">
+            <button type="submit" class="btn">{% if player %}Update Player{% else %}Save Player{% endif %}</button>
+            <a href="{{ url_for('players') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

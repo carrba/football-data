@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+.env
+.git/
+.github/
+.pytest_cache/
+.mypy_cache/
+data/*.sql
+data/*.bat

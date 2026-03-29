@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Teams - Football Data Recorder{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Teams</h2>
+    <div class="actions">
+        <a href="{{ url_for('new_team') }}" class="btn">Add New Team</a>
+    </div>
+</div>
+
+{% if teams %}
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>City</th>
+            <th>Country</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for team in teams %}
+        <tr>
+            <td>{{ team.name }}</td>
+            <td>{{ team.city or '-' }}</td>
+            <td>{{ team.country or '-' }}</td>
+            <td>
+                <a href="{{ url_for('team_detail', team_id=team.id) }}" class="btn btn-secondary">View</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="card">
+    <p>No teams added yet. <a href="{{ url_for('new_team') }}">Add your first team!</a></p>
+</div>
+{% endif %}
+{% endblock %}

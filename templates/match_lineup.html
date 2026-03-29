@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Starting Lineup - Football Data Recorder{% endblock %}
+
+{% block content %}
+<style>
+    .lineup-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .team-section {
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+    
+    .team-section h3 {
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #3498db;
+        color: #2c3e50;
+    }
+    
+    .player-row {
+        display: grid;
+        grid-template-columns: 40px 2fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        align-items: end;
+    }
+    
+    .player-number {
+        font-weight: bold;
+        font-size: 1.2rem;
+        color: #7f8c8d;
+        text-align: center;
+        padding-bottom: 0.5rem;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 0.3rem;
+        font-weight: 500;
+        font-size: 0.9rem;
+        color: #555;
+    }
+    
+    .form-group select {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1rem;
+    }
+    
+    .teams-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+    }
+    
+    @media (max-width: 768px) {
+        .teams-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="lineup-container">
+    <div class="card">
+        <h1>Starting Lineups</h1>
+        <h2 style="text-align: center; margin: 1rem 0; color: #2c3e50;">
+            {{ match.home_team.name }} vs {{ match.away_team.name }}
+        </h2>
+        <p style="text-align: center; color: #7f8c8d;">
+            {{ match.match_date.strftime('%Y-%m-%d %H:%M') }}
+            {% if match.home_formation or match.away_formation %}
+            <br>
+            Formations: {{ match.home_formation or '-' }} vs {{ match.away_formation or '-' }}
+            {% endif %}
+        </p>
+    </div>
+
+    <form method="POST">
+        <div class="teams-grid">
+            <!-- Home Team Lineup -->
+            <div class="team-section">
+                <h3>🏠 {{ match.home_team.name }}</h3>
+                {% for i in range(1, 12) %}
+                <div class="player-row">
+                    <div class="player-number">{{ i }}</div>
+                    <div class="form-group">
+                        <label for="home_player_{{ i }}">Player</label>
+                        <select id="home_player_{{ i }}" name="home_player_{{ i }}">
+                            <option value="">Select player...</option>
+                            {% for player in home_players %}
+                            <option value="{{ player.id }}"
+                                {% if home_lineup and home_lineup|length >= i and home_lineup[i-1].player_id == player.id %}selected{% endif %}>
+                                {{ player.name }}{% if player.jersey_number %} ({{ player.jersey_number }}){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="home_position_{{ i }}">Position</label>
+                        <select id="home_position_{{ i }}" name="home_position_{{ i }}">
+                            <option value="">Position...</option>
+                            <option value="GK" {% if home_lineup and home_lineup|length >= i and home_lineup[i-1].position == 'GK' %}selected{% endif %}>GK</option>
+                            <option value="RB" {% if home_lineup and home_lineup|length >= i and home_lineup[i-1].position == 'RB' %}selected{% endif %}>RB</option>
+                            <option value="CB" {% if home_lineup and home_lineup|length >= i and home_lineup[i-1].position == 'CB' %}selected{% endif %}>CB</option>
+                            <option value="LB" {% if home_lineup and home_lineup|length >= i and home_lineup[i-1].position == 'LB' %}selected{% endif %}>LB</option>
+                            <option value="RWB" {% if home_lineup and home_lineup|length >= i and home_lineup[i-1].position == 'RWB' %}selected{% endif %}>RWB</option>
+                            <option value="LWB" {% if home_lineup and home_lineup|length >= i and home_lineup[i-1].position == 'LWB' %}selected{% endif %}>LWB</option>
+                            <option value="CDM" {% if home_lineup and home_lineup|length >= i and home_lineup[i-1].position == 'CDM' %}selected{% endif %}>CDM</option>
+                            <option value="CM" {% if home_lineup and home_lineup|length >= i and home_lineup[i-1].position == 'CM' %}selected{% endif %}>CM</option>
+                            <option value="CAM" {% if home_lineup and home_lineup|length >= i and home_lineup[i-1].position == 'CAM' %}selected{% endif %}>CAM</option>
+                            <option value="RM" {% if home_lineup and home_lineup|length >= i and home_lineup[i-1].position == 'RM' %}selected{% endif %}>RM</option>
+                            <option value="LM" {% if home_lineup and home_lineup|length >= i and home_lineup[i-1].position == 'LM' %}selected{% endif %}>LM</option>
+                            <option value="RW" {% if home_lineup and home_lineup|length >= i and home_lineup[i-1].position == 'RW' %}selected{% endif %}>RW</option>
+                            <option value="LW" {% if home_lineup and home_lineup|length >= i and home_lineup[i-1].position == 'LW' %}selected{% endif %}>LW</option>
+                            <option value="ST" {% if home_lineup and home_lineup|length >= i and home_lineup[i-1].position == 'ST' %}selected{% endif %}>ST</option>
+                            <option value="CF" {% if home_lineup and home_lineup|length >= i and home_lineup[i-1].position == 'CF' %}selected{% endif %}>CF</option>
+                        </select>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Away Team Lineup -->
+            <div class="team-section">
+                <h3>✈️ {{ match.away_team.name }}</h3>
+                {% for i in range(1, 12) %}
+                <div class="player-row">
+                    <div class="player-number">{{ i }}</div>
+                    <div class="form-group">
+                        <label for="away_player_{{ i }}">Player</label>
+                        <select id="away_player_{{ i }}" name="away_player_{{ i }}">
+                            <option value="">Select player...</option>
+                            {% for player in away_players %}
+                            <option value="{{ player.id }}"
+                                {% if away_lineup and away_lineup|length >= i and away_lineup[i-1].player_id == player.id %}selected{% endif %}>
+                                {{ player.name }}{% if player.jersey_number %} ({{ player.jersey_number }}){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="away_position_{{ i }}">Position</label>
+                        <select id="away_position_{{ i }}" name="away_position_{{ i }}">
+                            <option value="">Position...</option>
+                            <option value="GK" {% if away_lineup and away_lineup|length >= i and away_lineup[i-1].position == 'GK' %}selected{% endif %}>GK</option>
+                            <option value="RB" {% if away_lineup and away_lineup|length >= i and away_lineup[i-1].position == 'RB' %}selected{% endif %}>RB</option>
+                            <option value="CB" {% if away_lineup and away_lineup|length >= i and away_lineup[i-1].position == 'CB' %}selected{% endif %}>CB</option>
+                            <option value="LB" {% if away_lineup and away_lineup|length >= i and away_lineup[i-1].position == 'LB' %}selected{% endif %}>LB</option>
+                            <option value="RWB" {% if away_lineup and away_lineup|length >= i and away_lineup[i-1].position == 'RWB' %}selected{% endif %}>RWB</option>
+                            <option value="LWB" {% if away_lineup and away_lineup|length >= i and away_lineup[i-1].position == 'LWB' %}selected{% endif %}>LWB</option>
+                            <option value="CDM" {% if away_lineup and away_lineup|length >= i and away_lineup[i-1].position == 'CDM' %}selected{% endif %}>CDM</option>
+                            <option value="CM" {% if away_lineup and away_lineup|length >= i and away_lineup[i-1].position == 'CM' %}selected{% endif %}>CM</option>
+                            <option value="CAM" {% if away_lineup and away_lineup|length >= i and away_lineup[i-1].position == 'CAM' %}selected{% endif %}>CAM</option>
+                            <option value="RM" {% if away_lineup and away_lineup|length >= i and away_lineup[i-1].position == 'RM' %}selected{% endif %}>RM</option>
+                            <option value="LM" {% if away_lineup and away_lineup|length >= i and away_lineup[i-1].position == 'LM' %}selected{% endif %}>LM</option>
+                            <option value="RW" {% if away_lineup and away_lineup|length >= i and away_lineup[i-1].position == 'RW' %}selected{% endif %}>RW</option>
+                            <option value="LW" {% if away_lineup and away_lineup|length >= i and away_lineup[i-1].position == 'LW' %}selected{% endif %}>LW</option>
+                            <option value="ST" {% if away_lineup and away_lineup|length >= i and away_lineup[i-1].position == 'ST' %}selected{% endif %}>ST</option>
+                            <option value="CF" {% if away_lineup and away_lineup|length >= i and away_lineup[i-1].position == 'CF' %}selected{% endif %}>CF</option>
+                        </select>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="actions" style="text-align: center; margin-top: 2rem;">
+            <button type="submit" class="btn" style="font-size: 1.1rem; padding: 0.8rem 2rem;">
+                Save Lineups & Continue to Stats
+            </button>
+            <a href="{{ url_for('match_detail', match_id=match.id) }}" class="btn btn-secondary" style="margin-left: 1rem;">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}{{ team.name }} - Football Data Recorder{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>{{ team.name }}</h2>
+    <p><strong>City:</strong> {{ team.city or 'N/A' }}</p>
+    <p><strong>Country:</strong> {{ team.country or 'N/A' }}</p>
+</div>
+
+<div class="card">
+    <h3>Players</h3>
+    {% if players %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Position</th>
+                <th>Jersey #</th>
+                <th>Nationality</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for player in players %}
+            <tr>
+                <td>{{ player.name }}</td>
+                <td>{{ player.position or '-' }}</td>
+                <td>{{ player.jersey_number or '-' }}</td>
+                <td>{{ player.nationality or '-' }}</td>
+                <td>
+                    <a href="{{ url_for('edit_player', player_id=player.id) }}" class="btn btn-small">✏️ Edit</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No players in this team yet.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h3>Match History</h3>
+    {% if home_matches or away_matches %}
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Home</th>
+                <th>Score</th>
+                <th>Away</th>
+                <th>Competition</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for match in home_matches + away_matches | sort(attribute='match_date', reverse=True) %}
+            <tr>
+                <td>{{ match.match_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ match.home_team.name }}</td>
+                <td><strong>{{ match.home_score }} - {{ match.away_score }}</strong></td>
+                <td>{{ match.away_team.name }}</td>
+                <td>{{ match.competition or '-' }}</td>
+                <td>
+                    <a href="{{ url_for('match_detail', match_id=match.id) }}" class="btn btn-secondary">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No matches recorded for this team yet.</p>
+    {% endif %}
+</div>
+
+<div class="actions">
+    <a href="{{ url_for('teams') }}" class="btn btn-secondary">Back to Teams</a>
+</div>
+{% endblock %}

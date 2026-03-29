@@ -1,0 +1,582 @@
+{% extends "base.html" %}
+
+{% block title %}Match Spreadsheet - Football Data Recorder{% endblock %}
+
+{% block content %}
+<style>
+    .spreadsheet-container {
+        --sticky-name-width: 170px;
+        --sticky-number-width: 70px;
+        --header-row-height: 52px;
+        overflow-x: auto;
+        overflow-y: auto;
+        max-height: 70vh;
+        margin-top: 2rem;
+    }
+    
+    .match-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    
+    .match-score {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin: 1rem 0;
+    }
+    
+    .match-details {
+        font-size: 0.95rem;
+        opacity: 0.95;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .team-section {
+        margin-bottom: 3rem;
+    }
+    
+    .team-title {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 1rem;
+        padding: 1rem;
+        background: #ecf0f1;
+        border-radius: 4px;
+        border-left: 4px solid #3498db;
+    }
+    
+    .stats-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border-radius: 4px;
+        overflow: visible;
+    }
+    
+    .stats-table thead {
+        background: #34495e;
+        color: white;
+    }
+    
+    .stats-table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        border-right: 2px solid #95a5a6;
+        border-bottom: 2px solid #95a5a6;
+        white-space: nowrap;
+        font-size: 0.85rem;
+        position: sticky;
+        background: #34495e;
+        z-index: 8;
+    }
+
+    .stats-table thead tr:first-child th {
+        top: 0;
+    }
+
+    .stats-table thead tr:last-child th {
+        top: var(--header-row-height);
+    }
+    
+    .stats-table th:last-child {
+        border-right: none;
+    }
+    
+    .stats-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #ecf0f1;
+        border-right: 1px solid #ecf0f1;
+    }
+    
+    .stats-table td:last-child {
+        border-right: none;
+    }
+
+    .stats-table thead tr:first-child th:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 11;
+        background: #34495e;
+        box-shadow: 2px 0 0 #95a5a6;
+    }
+
+    .stats-table thead tr:last-child th:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 11;
+        background: #34495e;
+        box-shadow: 2px 0 0 #95a5a6;
+    }
+
+    .stats-table thead tr:last-child th:nth-child(2) {
+        position: sticky;
+        left: var(--sticky-name-width);
+        z-index: 11;
+        background: #34495e;
+        box-shadow: 2px 0 0 #95a5a6;
+    }
+
+    .stats-table tbody td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 4;
+        background: white;
+        box-shadow: 2px 0 0 #ecf0f1;
+    }
+
+    .stats-table tbody td:nth-child(2) {
+        position: sticky;
+        left: var(--sticky-name-width);
+        z-index: 4;
+        background: white;
+        box-shadow: 2px 0 0 #ecf0f1;
+    }
+
+    .stats-table tbody tr:hover td:first-child,
+    .stats-table tbody tr:hover td:nth-child(2) {
+        background: #f8f9fa;
+    }
+
+    .stats-table tbody tr.aggregate-row td {
+        position: sticky;
+        bottom: 0;
+        z-index: 6;
+        background: #ecf0f1;
+        border-top: 2px solid #bdc3c7;
+    }
+
+    .stats-table tbody tr.aggregate-row td:first-child {
+        left: 0;
+        z-index: 7;
+        box-shadow: 2px 0 0 #bdc3c7;
+    }
+
+    .stats-table tbody tr.aggregate-row td:nth-child(2) {
+        left: var(--sticky-name-width);
+        z-index: 7;
+        background: #ecf0f1;
+        box-shadow: 2px 0 0 #bdc3c7;
+    }
+    
+    .stats-table tbody tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .stats-table tbody tr:last-child {
+        border-bottom: none;
+    }
+    
+    .player-name-cell {
+        font-weight: 600;
+        color: #2c3e50;
+        min-width: var(--sticky-name-width);
+    }
+    
+    .jersey-cell {
+        color: #7f8c8d;
+        text-align: center;
+        min-width: var(--sticky-number-width);
+    }
+    
+    .stat-value {
+        text-align: center;
+        min-width: 50px;
+        font-weight: 500;
+    }
+    
+    .aggregate-row {
+        background: #ecf0f1;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+    
+    .aggregate-row td {
+        padding: 1rem;
+        border-bottom: 2px solid #bdc3c7;
+    }
+    
+    .stat-category {
+        background: #d5e8f7;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        flex-wrap: wrap;
+    }
+    
+    @media (max-width: 768px) {
+        .match-details {
+            grid-template-columns: 1fr;
+        }
+        
+        .stats-table th,
+        .stats-table td {
+            padding: 0.5rem;
+            font-size: 0.8rem;
+        }
+        
+        .player-name-cell {
+            min-width: 120px;
+        }
+    }
+</style>
+
+<div class="match-header">
+    <div>{{ match.home_team.name }} vs {{ match.away_team.name }}</div>
+    <div class="match-score">{{ match.home_score }} - {{ match.away_score }}</div>
+    <div class="match-details">
+        <div>📅 {{ match.match_date.strftime('%B %d, %Y') }}</div>
+        <div>🕐 {{ match.match_date.strftime('%H:%M') }}</div>
+        {% if match.venue %}<div>📍 {{ match.venue }}</div>{% endif %}
+        {% if match.competition %}<div>🏆 {{ match.competition }}</div>{% endif %}
+    </div>
+</div>
+
+<!-- HOME TEAM -->
+<div class="team-section">
+    <div class="team-title">🏠 {{ match.home_team.name }}</div>
+    
+    <div class="spreadsheet-container">
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th colspan="2">Player Info</th>
+                    <th colspan="12">⚽ Passing</th>
+                    <th colspan="9">🎯 Shooting</th>
+                    <th colspan="4">🥊 Duels</th>
+                    <th colspan="4">🛡️ Defensive</th>
+                    <th colspan="5">� Disciplinary</th>
+                </tr>
+                <tr>
+                    <th>Name</th>
+                    <th>#</th>
+                    <th>Short C</th>
+                    <th>Short I</th>
+                    <th>Short %</th>
+                    <th>Long C</th>
+                    <th>Long I</th>
+                    <th>Long %</th>
+                    <th>Pack P</th>
+                    <th>Pack Score</th>
+                    <th>Overall %</th>
+                    <th>Pack Recv</th>
+                    <th>Pack Turn</th>
+                    <th>PT Score</th>
+                    <th>OnT</th>
+                    <th>OffT</th>
+                    <th>Blocked</th>
+                    <th>xA</th>
+                    <th>Assists</th>
+                    <th>Ch Cr</th>
+                    <th>Big Ch Cr</th>
+                    <th>xG</th>
+                    <th>Goals</th>
+                    <th>A Won</th>
+                    <th>A Lost</th>
+                    <th>G Won</th>
+                    <th>G Lost</th>
+                    <th>Tackles W</th>
+                    <th>Int</th>
+                    <th>Clear</th>
+                    <th>Press</th>
+                    <th>Fouls C</th>
+                    <th>Fouls W</th>
+                    <th>Offs</th>
+                    <th>Prog R</th>
+                    <th>Opp Box Tch</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in home_data %}
+                <tr>
+                    <td class="player-name-cell">
+                        <a href="{{ url_for('player_match_stats', match_id=match.id, player_id=row.player.id) }}" 
+                           style="color: #3498db; text-decoration: none;">
+                            {{ row.player.name }}
+                        </a>
+                    </td>
+                    <td class="jersey-cell">{{ row.player.jersey_number or '-' }}</td>
+                    <td class="stat-value">{{ row.stats.short_completed_passes }}</td>
+                    <td class="stat-value">{{ row.stats.short_incomplete_passes }}</td>
+                    <td class="stat-value">{% if row.stats.short_completed_passes + row.stats.short_incomplete_passes > 0 %}{{ "%.1f"|format(row.stats.short_completed_passes / (row.stats.short_completed_passes + row.stats.short_incomplete_passes) * 100) }}%{% else %}-{% endif %}</td>
+                    <td class="stat-value">{{ row.stats.long_completed_passes }}</td>
+                    <td class="stat-value">{{ row.stats.long_incomplete_passes }}</td>
+                    <td class="stat-value">{% if row.stats.long_completed_passes + row.stats.long_incomplete_passes > 0 %}{{ "%.1f"|format(row.stats.long_completed_passes / (row.stats.long_completed_passes + row.stats.long_incomplete_passes) * 100) }}%{% else %}-{% endif %}</td>
+                    <td class="stat-value">{{ row.stats.pack_passes }}</td>
+                    <td class="stat-value">{{ row.stats.pack_pass_score }}</td>
+                    <td class="stat-value">{% set total_completed = row.stats.pack_passes + row.stats.short_completed_passes + row.stats.long_completed_passes %}{% set total_attempts = row.stats.pack_passes + row.stats.short_completed_passes + row.stats.long_completed_passes + row.stats.short_incomplete_passes + row.stats.long_incomplete_passes %}{% if total_attempts > 0 %}{{ "%.1f"|format(total_completed / total_attempts * 100) }}%{% else %}-{% endif %}</td>
+                    <td class="stat-value">{{ row.stats.pack_pass_receive_score }}</td>
+                    <td class="stat-value">{{ row.stats.pack_turnovers }}</td>
+                    <td class="stat-value">{{ row.stats.pack_turnover_score }}</td>
+                    <td class="stat-value">{{ row.stats.shots_on_target }}</td>
+                    <td class="stat-value">{{ row.stats.shots_off_target }}</td>
+                    <td class="stat-value">{{ row.stats.shots_blocked }}</td>
+                    <td class="stat-value">{{ "%.2f"|format(row.xA or 0) }}</td>
+                    <td class="stat-value">{{ row.stats.assists }}</td>
+                    <td class="stat-value">{{ row.stats.chances_created }}</td>
+                    <td class="stat-value">{{ row.stats.big_chances_created }}</td>
+                    <td class="stat-value">{{ "%.2f"|format(row.stats.xG or 0) }}</td>
+                    <td class="stat-value">{{ row.stats.goals }}</td>
+                    <td class="stat-value">{{ row.stats.aerial_duels_won }}</td>
+                    <td class="stat-value">{{ row.stats.aerial_duels_lost }}</td>
+                    <td class="stat-value">{{ row.stats.ground_duels_won }}</td>
+                    <td class="stat-value">{{ row.stats.ground_duels_lost }}</td>
+                    <td class="stat-value">{{ row.stats.tackles_won }}</td>
+                    <td class="stat-value">{{ row.stats.interceptions }}</td>
+                    <td class="stat-value">{{ row.stats.clearances }}</td>
+                    <td class="stat-value">{{ '-' if (row.player.position and row.player.position.upper() in ['GK', 'GOALKEEPER']) else row.stats.pressures }}</td>
+                    <td class="stat-value">{{ row.stats.fouls_committed }}</td>
+                    <td class="stat-value">{{ row.stats.fouls_won }}</td>
+                    <td class="stat-value">{{ row.stats.offsides }}</td>
+                    <td class="stat-value">{{ row.stats.progressive_runs }}</td>
+                    <td class="stat-value">{{ row.stats.touches_in_opposition_box }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="aggregate-row">
+                    <td>TEAM TOTAL</td>
+                    <td></td>
+                    <td class="stat-value">{{ home_aggregates.short_completed_passes }}</td>
+                    <td class="stat-value">{{ home_aggregates.short_incomplete_passes }}</td>
+                    <td class="stat-value">{% if home_aggregates.short_completed_passes + home_aggregates.short_incomplete_passes > 0 %}{{ "%.1f"|format(home_aggregates.short_completed_passes / (home_aggregates.short_completed_passes + home_aggregates.short_incomplete_passes) * 100) }}%{% else %}-{% endif %}</td>
+                    <td class="stat-value">{{ home_aggregates.long_completed_passes }}</td>
+                    <td class="stat-value">{{ home_aggregates.long_incomplete_passes }}</td>
+                    <td class="stat-value">{% if home_aggregates.long_completed_passes + home_aggregates.long_incomplete_passes > 0 %}{{ "%.1f"|format(home_aggregates.long_completed_passes / (home_aggregates.long_completed_passes + home_aggregates.long_incomplete_passes) * 100) }}%{% else %}-{% endif %}</td>
+                    <td class="stat-value">{{ home_aggregates.pack_passes }}</td>
+                    <td class="stat-value">{{ home_aggregates.pack_pass_score }}</td>
+                    <td class="stat-value">{% set total_completed = home_aggregates.pack_passes + home_aggregates.short_completed_passes + home_aggregates.long_completed_passes %}{% set total_attempts = home_aggregates.pack_passes + home_aggregates.short_completed_passes + home_aggregates.long_completed_passes + home_aggregates.short_incomplete_passes + home_aggregates.long_incomplete_passes %}{% if total_attempts > 0 %}{{ "%.1f"|format(total_completed / total_attempts * 100) }}%{% else %}-{% endif %}</td>
+                    <td class="stat-value">{{ home_aggregates.pack_pass_receive_score }}</td>
+                    <td class="stat-value">{{ home_aggregates.pack_turnovers }}</td>
+                    <td class="stat-value">{{ home_aggregates.pack_turnover_score }}</td>
+                    <td class="stat-value">{{ home_aggregates.shots_on_target }}</td>
+                    <td class="stat-value">{{ home_aggregates.shots_off_target }}</td>
+                    <td class="stat-value">{{ home_aggregates.shots_blocked }}</td>
+                    <td class="stat-value">{{ "%.2f"|format(home_aggregates.xA or 0) }}</td>
+                    <td class="stat-value">{{ home_aggregates.assists }}</td>
+                    <td class="stat-value">{{ home_aggregates.chances_created }}</td>
+                    <td class="stat-value">{{ home_aggregates.big_chances_created }}</td>
+                    <td class="stat-value">{{ "%.2f"|format(home_aggregates.xG or 0) }}</td>
+                    <td class="stat-value">{{ home_aggregates.goals }}</td>
+                    <td class="stat-value">{{ home_aggregates.aerial_duels_won }}</td>
+                    <td class="stat-value">{{ home_aggregates.aerial_duels_lost }}</td>
+                    <td class="stat-value">{{ home_aggregates.ground_duels_won }}</td>
+                    <td class="stat-value">{{ home_aggregates.ground_duels_lost }}</td>
+                    <td class="stat-value">{{ home_aggregates.tackles_won }}</td>
+                    <td class="stat-value">{{ home_aggregates.interceptions }}</td>
+                    <td class="stat-value">{{ home_aggregates.clearances }}</td>
+                    <td class="stat-value">{{ home_aggregates.pressures }}</td>
+                    <td class="stat-value">{{ home_aggregates.fouls_committed }}</td>
+                    <td class="stat-value">{{ home_aggregates.fouls_won }}</td>
+                    <td class="stat-value">{{ home_aggregates.offsides }}</td>
+                    <td class="stat-value">{{ home_aggregates.progressive_runs }}</td>
+                    <td class="stat-value">{{ home_aggregates.touches_in_opposition_box }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- AWAY TEAM -->
+<div class="team-section">
+    <div class="team-title">✈️ {{ match.away_team.name }}</div>
+    
+    <div class="spreadsheet-container">
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th colspan="2">Player Info</th>
+                    <th colspan="12">⚽ Passing</th>
+                    <th colspan="9">🎯 Shooting</th>
+                    <th colspan="4">🥊 Duels</th>
+                    <th colspan="4">🛡️ Defensive</th>
+                    <th colspan="5">� Disciplinary</th>
+                </tr>
+                <tr>
+                    <th>Name</th>
+                    <th>#</th>
+                    <th>Short C</th>
+                    <th>Short I</th>
+                    <th>Short %</th>
+                    <th>Long C</th>
+                    <th>Long I</th>
+                    <th>Long %</th>
+                    <th>Pack P</th>
+                    <th>Pack Score</th>
+                    <th>Overall %</th>
+                    <th>Pack Recv</th>
+                    <th>Pack Turn</th>
+                    <th>PT Score</th>
+                    <th>OnT</th>
+                    <th>OffT</th>
+                    <th>Blocked</th>
+                    <th>xA</th>
+                    <th>Assists</th>
+                    <th>Ch Cr</th>
+                    <th>Big Ch Cr</th>
+                    <th>xG</th>
+                    <th>Goals</th>
+                    <th>A Won</th>
+                    <th>A Lost</th>
+                    <th>G Won</th>
+                    <th>G Lost</th>
+                    <th>Tackles W</th>
+                    <th>Int</th>
+                    <th>Clear</th>
+                    <th>Press</th>
+                    <th>Fouls C</th>
+                    <th>Fouls W</th>
+                    <th>Offs</th>
+                    <th>Prog R</th>
+                    <th>Opp Box Tch</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in away_data %}
+                <tr>
+                    <td class="player-name-cell">
+                        <a href="{{ url_for('player_match_stats', match_id=match.id, player_id=row.player.id) }}" 
+                           style="color: #3498db; text-decoration: none;">
+                            {{ row.player.name }}
+                        </a>
+                    </td>
+                    <td class="jersey-cell">{{ row.player.jersey_number or '-' }}</td>
+                    <td class="stat-value">{{ row.stats.short_completed_passes }}</td>
+                    <td class="stat-value">{{ row.stats.short_incomplete_passes }}</td>
+                    <td class="stat-value">{% if row.stats.short_completed_passes + row.stats.short_incomplete_passes > 0 %}{{ "%.1f"|format(row.stats.short_completed_passes / (row.stats.short_completed_passes + row.stats.short_incomplete_passes) * 100) }}%{% else %}-{% endif %}</td>
+                    <td class="stat-value">{{ row.stats.long_completed_passes }}</td>
+                    <td class="stat-value">{{ row.stats.long_incomplete_passes }}</td>
+                    <td class="stat-value">{% if row.stats.long_completed_passes + row.stats.long_incomplete_passes > 0 %}{{ "%.1f"|format(row.stats.long_completed_passes / (row.stats.long_completed_passes + row.stats.long_incomplete_passes) * 100) }}%{% else %}-{% endif %}</td>
+                    <td class="stat-value">{{ row.stats.pack_passes }}</td>
+                    <td class="stat-value">{{ row.stats.pack_pass_score }}</td>
+                    <td class="stat-value">{% set total_completed = row.stats.pack_passes + row.stats.short_completed_passes + row.stats.long_completed_passes %}{% set total_attempts = row.stats.pack_passes + row.stats.short_completed_passes + row.stats.long_completed_passes + row.stats.short_incomplete_passes + row.stats.long_incomplete_passes %}{% if total_attempts > 0 %}{{ "%.1f"|format(total_completed / total_attempts * 100) }}%{% else %}-{% endif %}</td>
+                    <td class="stat-value">{{ row.stats.pack_pass_receive_score }}</td>
+                    <td class="stat-value">{{ row.stats.pack_turnovers }}</td>
+                    <td class="stat-value">{{ row.stats.pack_turnover_score }}</td>
+                    <td class="stat-value">{{ row.stats.shots_on_target }}</td>
+                    <td class="stat-value">{{ row.stats.shots_off_target }}</td>
+                    <td class="stat-value">{{ row.stats.shots_blocked }}</td>
+                    <td class="stat-value">{{ "%.2f"|format(row.xA or 0) }}</td>
+                    <td class="stat-value">{{ row.stats.assists }}</td>
+                    <td class="stat-value">{{ row.stats.chances_created }}</td>
+                    <td class="stat-value">{{ row.stats.big_chances_created }}</td>
+                    <td class="stat-value">{{ "%.2f"|format(row.stats.xG or 0) }}</td>
+                    <td class="stat-value">{{ row.stats.goals }}</td>
+                    <td class="stat-value">{{ row.stats.aerial_duels_won }}</td>
+                    <td class="stat-value">{{ row.stats.aerial_duels_lost }}</td>
+                    <td class="stat-value">{{ row.stats.ground_duels_won }}</td>
+                    <td class="stat-value">{{ row.stats.ground_duels_lost }}</td>
+                    <td class="stat-value">{{ row.stats.tackles_won }}</td>
+                    <td class="stat-value">{{ row.stats.interceptions }}</td>
+                    <td class="stat-value">{{ row.stats.clearances }}</td>
+                    <td class="stat-value">{{ '-' if (row.player.position and row.player.position.upper() in ['GK', 'GOALKEEPER']) else row.stats.pressures }}</td>
+                    <td class="stat-value">{{ row.stats.fouls_committed }}</td>
+                    <td class="stat-value">{{ row.stats.fouls_won }}</td>
+                    <td class="stat-value">{{ row.stats.offsides }}</td>
+                    <td class="stat-value">{{ row.stats.progressive_runs }}</td>
+                    <td class="stat-value">{{ row.stats.touches_in_opposition_box }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="aggregate-row">
+                    <td>TEAM TOTAL</td>
+                    <td></td>
+                    <td class="stat-value">{{ away_aggregates.short_completed_passes }}</td>
+                    <td class="stat-value">{{ away_aggregates.short_incomplete_passes }}</td>
+                    <td class="stat-value">{% if away_aggregates.short_completed_passes + away_aggregates.short_incomplete_passes > 0 %}{{ "%.1f"|format(away_aggregates.short_completed_passes / (away_aggregates.short_completed_passes + away_aggregates.short_incomplete_passes) * 100) }}%{% else %}-{% endif %}</td>
+                    <td class="stat-value">{{ away_aggregates.long_completed_passes }}</td>
+                    <td class="stat-value">{{ away_aggregates.long_incomplete_passes }}</td>
+                    <td class="stat-value">{% if away_aggregates.long_completed_passes + away_aggregates.long_incomplete_passes > 0 %}{{ "%.1f"|format(away_aggregates.long_completed_passes / (away_aggregates.long_completed_passes + away_aggregates.long_incomplete_passes) * 100) }}%{% else %}-{% endif %}</td>
+                    <td class="stat-value">{{ away_aggregates.pack_passes }}</td>
+                    <td class="stat-value">{{ away_aggregates.pack_pass_score }}</td>
+                    <td class="stat-value">{% set total_completed = away_aggregates.pack_passes + away_aggregates.short_completed_passes + away_aggregates.long_completed_passes %}{% set total_attempts = away_aggregates.pack_passes + away_aggregates.short_completed_passes + away_aggregates.long_completed_passes + away_aggregates.short_incomplete_passes + away_aggregates.long_incomplete_passes %}{% if total_attempts > 0 %}{{ "%.1f"|format(total_completed / total_attempts * 100) }}%{% else %}-{% endif %}</td>
+                    <td class="stat-value">{{ away_aggregates.pack_pass_receive_score }}</td>
+                    <td class="stat-value">{{ away_aggregates.pack_turnovers }}</td>
+                    <td class="stat-value">{{ away_aggregates.pack_turnover_score }}</td>
+                    <td class="stat-value">{{ away_aggregates.shots_on_target }}</td>
+                    <td class="stat-value">{{ away_aggregates.shots_off_target }}</td>
+                    <td class="stat-value">{{ away_aggregates.shots_blocked }}</td>
+                    <td class="stat-value">{{ "%.2f"|format(away_aggregates.xA or 0) }}</td>
+                    <td class="stat-value">{{ away_aggregates.assists }}</td>
+                    <td class="stat-value">{{ away_aggregates.chances_created }}</td>
+                    <td class="stat-value">{{ away_aggregates.big_chances_created }}</td>
+                    <td class="stat-value">{{ "%.2f"|format(away_aggregates.xG or 0) }}</td>
+                    <td class="stat-value">{{ away_aggregates.goals }}</td>
+                    <td class="stat-value">{{ away_aggregates.aerial_duels_won }}</td>
+                    <td class="stat-value">{{ away_aggregates.aerial_duels_lost }}</td>
+                    <td class="stat-value">{{ away_aggregates.ground_duels_won }}</td>
+                    <td class="stat-value">{{ away_aggregates.ground_duels_lost }}</td>
+                    <td class="stat-value">{{ away_aggregates.tackles_won }}</td>
+                    <td class="stat-value">{{ away_aggregates.interceptions }}</td>
+                    <td class="stat-value">{{ away_aggregates.clearances }}</td>
+                    <td class="stat-value">{{ away_aggregates.pressures }}</td>
+                    <td class="stat-value">{{ away_aggregates.fouls_committed }}</td>
+                    <td class="stat-value">{{ away_aggregates.fouls_won }}</td>
+                    <td class="stat-value">{{ away_aggregates.offsides }}</td>
+                    <td class="stat-value">{{ away_aggregates.progressive_runs }}</td>
+                    <td class="stat-value">{{ away_aggregates.touches_in_opposition_box }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Legend -->
+<div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-top: 2rem;">
+    <h3>Column Legend</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; font-size: 0.9rem;">
+        <div><strong>Short C:</strong> Short Completed Passes</div>
+        <div><strong>Short I:</strong> Short Incomplete Passes</div>
+        <div><strong>Short %:</strong> Short Pass Completion %</div>
+        <div><strong>Long C:</strong> Long Completed Passes</div>
+        <div><strong>Long I:</strong> Long Incomplete Passes</div>
+        <div><strong>Long %:</strong> Long Pass Completion %</div>
+        <div><strong>Pack P:</strong> Pack Passes</div>
+        <div><strong>Pack Score:</strong> Pack Pass Score</div>
+        <div><strong>Pack Recv:</strong> Pack Pass Receive Score</div>
+        <div><strong>Overall %:</strong> Overall Pass Completion % (Pack + Short + Long) / (Pack + Short + Long + Incomplete)</div>
+        <div><strong>Pack Turn:</strong> Pack Turnovers</div>
+        <div><strong>PT Score:</strong> Pack Turnover Score</div>
+        <div><strong>xA:</strong> Sum of xG values from shots where this player is the assister</div>
+        <div><strong>Ch Cr:</strong> Chances Created (shot-ending passes)</div>
+        <div><strong>Big Ch Cr:</strong> Big Chances Created (shot-ending passes to big chances)</div>
+        <div><strong>Assists:</strong> Assisted passes that resulted in goals</div>
+        <div><strong>xG:</strong> Total expected goals from all shots taken by the player in the match</div>
+        <div><strong>Goals:</strong> Goals scored by the player</div>
+        <div><strong>A Won:</strong> Aerial Duels Won</div>
+        <div><strong>A Lost:</strong> Aerial Duels Lost</div>
+        <div><strong>G Won:</strong> Ground Duels Won</div>
+        <div><strong>G Lost:</strong> Ground Duels Lost</div>
+        <div><strong>Tackles W:</strong> Tackles Won</div>
+        <div><strong>Int:</strong> Interceptions</div>
+        <div><strong>Clear:</strong> Clearances</div>
+        <div><strong>Press:</strong> Pressures</div>
+        <div><strong>Fouls C:</strong> Fouls Committed</div>
+        <div><strong>Fouls W:</strong> Fouls Won</div>
+        <div><strong>Offs:</strong> Offsides</div>
+        <div><strong>Prog R:</strong> Progressive Runs</div>
+        <div><strong>Opp Box Tch:</strong> Touches in Opposition Box</div>
+    </div>
+</div>
+
+<div class="actions">
+    <a href="{{ url_for('export_match_spreadsheet_csv', match_id=match.id) }}" class="btn">⬇️ Export CSV</a>
+    <a href="{{ url_for('export_player_match_summary_pdf', match_id=match.id) }}" class="btn">⬇️ Export Player Match Summary PDF</a>
+    <a href="{{ url_for('match_stats', match_id=match.id) }}" class="btn">📊 Record Stats</a>
+    <a href="{{ url_for('match_detail', match_id=match.id) }}" class="btn btn-secondary">← Back to Match</a>
+    <a href="{{ url_for('matches') }}" class="btn btn-secondary">All Matches</a>
+</div>
+
+{% endblock %}

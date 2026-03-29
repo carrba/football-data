@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Players - Football Data Recorder{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Players</h2>
+    <div class="actions">
+        <a href="{{ url_for('new_player') }}" class="btn">Add New Player</a>
+    </div>
+</div>
+
+{% if players %}
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Team</th>
+            <th>Position</th>
+            <th>Jersey #</th>
+            <th>Nationality</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for player in players %}
+        <tr>
+            <td>{{ player.name }}</td>
+            <td>{{ player.team.name if player.team else '-' }}</td>
+            <td>{{ player.position or '-' }}</td>
+            <td>{{ player.jersey_number or '-' }}</td>
+            <td>{{ player.nationality or '-' }}</td>
+            <td>
+                <a href="{{ url_for('edit_player', player_id=player.id) }}" class="btn btn-small">✏️ Edit</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="card">
+    <p>No players added yet. <a href="{{ url_for('new_player') }}">Add your first player!</a></p>
+</div>
+{% endif %}
+{% endblock %}

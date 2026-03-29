@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+
+{% block title %}Player Stats - {{ player.name }} - Football Data Recorder{% endblock %}
+
+{% block content %}
+<style>
+    .player-profile {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 2rem;
+        align-items: start;
+    }
+    
+    .player-avatar {
+        width: 120px;
+        height: 120px;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        font-weight: bold;
+        border: 2px solid rgba(255, 255, 255, 0.5);
+    }
+    
+    .player-info {
+        display: grid;
+        gap: 0.5rem;
+    }
+    
+    .player-name {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .player-context {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        font-size: 0.95rem;
+    }
+    
+    .context-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+    
+    .context-label {
+        font-size: 0.8rem;
+        opacity: 0.9;
+        text-transform: uppercase;
+    }
+    
+    .context-value {
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+    }
+    
+    .stat-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border-left: 4px solid #3498db;
+    }
+    
+    .stat-card h3 {
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+        color: #2c3e50;
+        border-bottom: 2px solid #ecf0f1;
+        padding-bottom: 0.5rem;
+    }
+    
+    .stat-item {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding: 0.5rem;
+        background: #f8f9fa;
+        border-radius: 4px;
+    }
+    
+    .stat-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .stat-label {
+        font-size: 0.95rem;
+        color: #555;
+        font-weight: 500;
+    }
+    
+    .stat-value {
+        font-size: 1.3rem;
+        font-weight: bold;
+        color: #2c3e50;
+        text-align: right;
+    }
+    
+    .metric-highlight {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+    }
+    
+    .percentage {
+        font-size: 0.85rem;
+        color: #7f8c8d;
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 6px;
+        background: #ecf0f1;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #3498db, #2980b9);
+        transition: width 0.3s ease;
+    }
+    
+    .stat-card.passing {
+        border-left-color: #3498db;
+    }
+    
+    .stat-card.shooting {
+        border-left-color: #e74c3c;
+    }
+    
+    .stat-card.defensive {
+        border-left-color: #27ae60;
+    }
+    
+    .stat-card.physical {
+        border-left-color: #f39c12;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        color: #7f8c8d;
+    }
+    
+    .actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        flex-wrap: wrap;
+    }
+    
+    .match-info {
+        background: #ecf0f1;
+        padding: 1rem;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+    }
+    
+    .match-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .match-details {
+        font-size: 0.9rem;
+        color: #555;
+        margin-top: 0.5rem;
+    }
+</style>
+
+<div class="card">
+    <div class="match-info">
+        <div class="match-title">
+            {{ match.home_team.name }} vs {{ match.away_team.name }}
+            <span style="color: #3498db; font-weight: bold;">
+                {{ match.home_score }} - {{ match.away_score }}
+            </span>
+        </div>
+        <div class="match-details">
+            📅 {{ match.match_date.strftime('%B %d, %Y') }} at {{ match.match_date.strftime('%H:%M') }}
+            {% if match.venue %} • 📍 {{ match.venue }}{% endif %}
+            {% if match.competition %} • 🏆 {{ match.competition }}{% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="player-profile">
+    <div class="player-avatar">
+        {{ player.name[0].upper() }}
+    </div>
+    <div class="player-info">
+        <div class="player-name">{{ player.name }}</div>
+        <div class="player-context">
+            <div class="context-item">
+                <span class="context-label">Team</span>
+                <span class="context-value">{{ player.team.name if player.team else 'N/A' }}</span>
+            </div>
+            <div class="context-item">
+                <span class="context-label">Position</span>
+                <span class="context-value">{{ player.position or 'N/A' }}</span>
+            </div>
+            <div class="context-item">
+                <span class="context-label">Jersey #</span>
+                <span class="context-value">{{ player.jersey_number or '-' }}</span>
+            </div>
+            <div class="context-item">
+                <span class="context-label">Nationality</span>
+                <span class="context-value">{{ player.nationality or 'N/A' }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <!-- Passing Stats -->
+    <div class="stat-card passing">
+        <h3>⚽ Passing</h3>
+        <div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #ecf0f1;">
+            <div style="font-weight: 600; color: #2c3e50; margin-bottom: 0.5rem;">Short Passes</div>
+            <div class="stat-item">
+                <span class="stat-label">Completed</span>
+                <span class="stat-value">{{ stats.short_completed_passes }}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Incomplete</span>
+                <span class="stat-value">{{ stats.short_incomplete_passes }}</span>
+            </div>
+            {% if stats.short_completed_passes + stats.short_incomplete_passes > 0 %}
+            <div class="stat-item">
+                <span class="stat-label">Completion %</span>
+                <span class="stat-value metric-highlight">
+                    {{ "%.1f"|format(stats.short_completed_passes / (stats.short_completed_passes + stats.short_incomplete_passes) * 100) }}%
+                </span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ stats.short_completed_passes / (stats.short_completed_passes + stats.short_incomplete_passes) * 100 }}%;"></div>
+            </div>
+            {% endif %}
+        </div>
+        <div>
+            <div style="font-weight: 600; color: #2c3e50; margin-bottom: 0.5rem;">Long Passes</div>
+            <div class="stat-item">
+                <span class="stat-label">Completed</span>
+                <span class="stat-value">{{ stats.long_completed_passes }}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Incomplete</span>
+                <span class="stat-value">{{ stats.long_incomplete_passes }}</span>
+            </div>
+            {% if stats.long_completed_passes + stats.long_incomplete_passes > 0 %}
+            <div class="stat-item">
+                <span class="stat-label">Completion %</span>
+                <span class="stat-value metric-highlight">
+                    {{ "%.1f"|format(stats.long_completed_passes / (stats.long_completed_passes + stats.long_incomplete_passes) * 100) }}%
+                </span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ stats.long_completed_passes / (stats.long_completed_passes + stats.long_incomplete_passes) * 100 }}%;"></div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Shooting Stats -->
+    <div class="stat-card shooting">
+        <h3>🎯 Shooting</h3>
+        <div class="stat-item">
+            <span class="stat-label">Shots on Target</span>
+            <span class="stat-value">{{ stats.shots_on_target }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Shots off Target</span>
+            <span class="stat-value">{{ stats.shots_off_target }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Shots Blocked</span>
+            <span class="stat-value">{{ stats.shots_blocked }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Total Shots</span>
+            <span class="stat-value">{{ metrics.total_shots }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Chances Created</span>
+            <span class="stat-value">{{ metrics.chances_created }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Big Chances Created</span>
+            <span class="stat-value">{{ metrics.big_chances_created }}</span>
+        </div>
+        {% if metrics.total_shots > 0 %}
+        <div class="stat-item">
+            <span class="stat-label">Accuracy</span>
+            <span class="stat-value metric-highlight">
+                {{ "%.1f"|format(metrics.shot_accuracy) }}%
+            </span>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {{ metrics.shot_accuracy }}%;"></div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Defensive Stats -->
+    <div class="stat-card defensive">
+        <h3>🛡️ Defensive</h3>
+        <div class="stat-item">
+            <span class="stat-label">Aerial Duels Won</span>
+            <span class="stat-value">{{ stats.aerial_duels_won }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Aerial Duels Lost</span>
+            <span class="stat-value">{{ stats.aerial_duels_lost }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Ground Duels Won</span>
+            <span class="stat-value">{{ stats.ground_duels_won }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Ground Duels Lost</span>
+            <span class="stat-value">{{ stats.ground_duels_lost }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Interceptions</span>
+            <span class="stat-value">{{ stats.interceptions }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Clearances</span>
+            <span class="stat-value">{{ stats.clearances }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Pressures</span>
+            <span class="stat-value">{{ stats.pressures }}</span>
+        </div>
+    </div>
+
+    <!-- Physical Stats -->
+    <div class="stat-card physical">
+        <h3>💪 Physical</h3>
+        <div class="stat-item">
+            <span class="stat-label">Duels Won</span>
+            <span class="stat-value">{{ stats.duels_won }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Duels Lost</span>
+            <span class="stat-value">{{ stats.duels_lost }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Fouls Committed</span>
+            <span class="stat-value">{{ stats.fouls_committed }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Fouls Won</span>
+            <span class="stat-value">{{ stats.fouls_won }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Offsides</span>
+            <span class="stat-value">{{ stats.offsides }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Yellow Cards</span>
+            <span class="stat-value">{{ stats.yellow_cards }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Red Cards</span>
+            <span class="stat-value">{{ stats.red_cards }}</span>
+        </div>
+        {% if metrics.total_duels > 0 %}
+        <div class="stat-item">
+            <span class="stat-label">Duel Success</span>
+            <span class="stat-value metric-highlight">
+                {{ "%.1f"|format(metrics.duel_success_rate) }}%
+            </span>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {{ metrics.duel_success_rate }}%;"></div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="actions">
+    <a href="{{ url_for('match_stats', match_id=match.id) }}" class="btn">← Back to Match Stats</a>
+    <a href="{{ url_for('match_detail', match_id=match.id) }}" class="btn btn-secondary">View Match</a>
+    <a href="{{ url_for('matches') }}" class="btn btn-secondary">All Matches</a>
+</div>
+{% endblock %}

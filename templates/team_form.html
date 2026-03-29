@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}{% if team %}Edit Team{% else %}New Team{% endif %} - Football Data Recorder{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>{% if team %}Edit Team{% else %}Add New Team{% endif %}</h2>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label for="name">Team Name *</label>
+            <input type="text" id="name" name="name" value="{{ team.name if team else '' }}" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="city">City</label>
+            <input type="text" id="city" name="city" value="{{ team.city if team else '' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="country">Country</label>
+            <input type="text" id="country" name="country" value="{{ team.country if team else '' }}">
+        </div>
+        
+        <div class="actions">
+            <button type="submit" class="btn">Save Team</button>
+            <a href="{{ url_for('teams') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
