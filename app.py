@@ -290,19 +290,252 @@ def build_summary_export_filename(match, summary_type):
     return f"{team_slug}_{summary_type}_{date_suffix}.pdf"
 
 
-def recalc_match_score(match_id):
-    """Recalculate match score from player goal stats for that match."""
-    match = Match.query.get(match_id)
-    if not match:
-        return False
+def build_match_summary_pdf_response(match, summary_rows, goal_threat_rows, summary_type, summary_heading='Match Summary', player_rows=None):
+    buffer = io.BytesIO()
+    document = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=36, rightMargin=36, topMargin=36, bottomMargin=36)
+    styles = getSampleStyleSheet()
+    elements = []
 
+    elements.append(KeepTogether([
+        Paragraph(f"{match.home_team.name} vs {match.away_team.name}", styles['Title']),
+        Paragraph(match.match_date.strftime('%Y-%m-%d %H:%M'), styles['Normal'])
+    ]))
+    elements.append(Spacer(1, 14))
+
+    table_data = [['Metric', match.home_team.name, match.away_team.name]]
+    for row in summary_rows:
+        home_value = row['home_value']
+        away_value = row['away_value']
+        if row['value_type'] == 'float':
+            home_display = f"{home_value:.2f}"
+            away_display = f"{away_value:.2f}"
+        else:
+            home_display = str(home_value)
+            away_display = str(away_value)
+
+        table_data.append([row['metric'], home_display, away_display])
+
+    summary_table = Table(table_data, colWidths=[220, 140, 140])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(KeepTogether([
+        Paragraph(summary_heading, styles['Heading2']),
+        summary_table
+    ]))
+    elements.append(Spacer(1, 16))
+
+    goal_threat_table_data = [['Metric', match.home_team.name, match.away_team.name]]
+    for row in goal_threat_rows:
+        home_value = row['home_value']
+        away_value = row['away_value']
+        if row['value_type'] == 'float':
+            home_display = f"{home_value:.2f}"
+            away_display = f"{away_value:.2f}"
+        elif row['value_type'] == 'pct':
+            home_display = f"{home_value:.1f}%"
+            away_display = f"{away_value:.1f}%"
+        else:
+            home_display = str(home_value)
+            away_display = str(away_value)
+
+        goal_threat_table_data.append([row['metric'], home_display, away_display])
+
+    goal_threat_table = Table(goal_threat_table_data, colWidths=[220, 140, 140])
+    goal_threat_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(KeepTogether([
+        Paragraph('Goal Threat', styles['Heading2']),
+        goal_threat_table
+    ]))
+    elements.append(Spacer(1, 16))
+
+    main_team_id = match.home_team_id if match.main else match.away_team_id
+    non_main_team_id = match.away_team_id if match.main else match.home_team_id
+    main_team_name = match.home_team.name if match.main else match.away_team.name
+    non_main_team_name = match.away_team.name if match.main else match.home_team.name
+
+    shot_events = ShotEvent.query.filter(
+        ShotEvent.match_id == match.id,
+        ShotEvent.veo_seconds.isnot(None),
+        ShotEvent.veo_seconds >= 0
+    ).order_by(ShotEvent.veo_seconds.asc(), ShotEvent.id.asc()).all()
+
+    main_points = [(0.0, 0.0)]
+    non_main_points = [(0.0, 0.0)]
+    main_cumulative_xg = 0.0
+    non_main_cumulative_xg = 0.0
+
+    for event in shot_events:
+        shot_minute = float(event.veo_seconds) / 60.0
+        shot_xg = float(event.xG or 0.0)
+        shooter_team_id = event.team_id
+
+        if shooter_team_id == main_team_id:
+            main_points.append((shot_minute, main_cumulative_xg))
+            main_cumulative_xg += shot_xg
+            main_points.append((shot_minute, main_cumulative_xg))
+        elif shooter_team_id == non_main_team_id:
+            non_main_points.append((shot_minute, non_main_cumulative_xg))
+            non_main_cumulative_xg += shot_xg
+            non_main_points.append((shot_minute, non_main_cumulative_xg))
+        else:
+            continue
+
+    timeline_elements = [Paragraph('xG Timeline', styles['Heading2'])]
+
+    if len(main_points) > 1 or len(non_main_points) > 1:
+        drawing = Drawing(520, 220)
+        line_plot = LinePlot()
+        line_plot.x = 45
+        line_plot.y = 40
+        line_plot.height = 150
+        line_plot.width = 445
+        line_plot.data = [main_points, non_main_points]
+        line_plot.joinedLines = 1
+
+        line_plot.lines[0].strokeColor = colors.HexColor('#1f77b4')
+        line_plot.lines[0].strokeWidth = 2
+        line_plot.lines[1].strokeColor = colors.HexColor('#d62728')
+        line_plot.lines[1].strokeWidth = 2
+
+        max_minute = max(point[0] for point in main_points + non_main_points)
+        max_cumulative_xg = max(point[1] for point in main_points + non_main_points)
+
+        x_max = max(5.0, math.ceil(max_minute / 5.0) * 5.0)
+        y_max = max(0.5, math.ceil(max_cumulative_xg * 2) / 2)
+
+        line_plot.xValueAxis.valueMin = 0
+        line_plot.xValueAxis.valueMax = x_max
+        line_plot.xValueAxis.valueStep = 5
+        line_plot.yValueAxis.valueMin = 0
+        line_plot.yValueAxis.valueMax = y_max
+        line_plot.yValueAxis.valueStep = max(0.1, round(y_max / 5, 1))
+        line_plot.xValueAxis.labelTextFormat = '%.0f'
+        line_plot.yValueAxis.labelTextFormat = '%.1f'
+
+        drawing.add(line_plot)
+        timeline_elements.append(drawing)
+        timeline_elements.append(Paragraph(f"Blue: {main_team_name}", styles['Normal']))
+        timeline_elements.append(Paragraph(f"Red: {non_main_team_name}", styles['Normal']))
+    else:
+        timeline_elements.append(Paragraph('No timed shot data available to plot cumulative xG timeline.', styles['Normal']))
+
+    elements.append(KeepTogether(timeline_elements))
+
+    if player_rows:
+        elements.append(Spacer(1, 16))
+        header_style = ParagraphStyle(
+            'ShotSummaryPlayerHeader',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=8,
+            leading=9,
+            textColor=colors.whitesmoke,
+            alignment=1,
+        )
+        body_style = ParagraphStyle(
+            'ShotSummaryPlayerBody',
+            parent=styles['Normal'],
+            fontSize=8,
+            leading=9,
+            alignment=1,
+        )
+        name_style = ParagraphStyle(
+            'ShotSummaryPlayerName',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=8,
+            leading=9,
+            alignment=0,
+        )
+        player_table_data = [[
+            Paragraph('Player', header_style),
+            Paragraph('Goals', header_style),
+            Paragraph('Assists', header_style),
+            Paragraph('xG', header_style),
+            Paragraph('xA', header_style),
+            Paragraph('xSC', header_style),
+            Paragraph('Shots On Target', header_style),
+            Paragraph('Shots Off Target', header_style),
+            Paragraph('Shots Blocked', header_style),
+        ]]
+        for row in player_rows:
+            player_table_data.append([
+                Paragraph(row['player_name'], name_style),
+                Paragraph(str(row['goals']), body_style),
+                Paragraph(str(row['assists']), body_style),
+                Paragraph(f"{row['xg']:.2f}", body_style),
+                Paragraph(f"{row['xa']:.2f}", body_style),
+                Paragraph(f"{row['xg'] + row['xa']:.2f}", body_style),
+                Paragraph(str(row['shots_on_target']), body_style),
+                Paragraph(str(row['shots_off_target']), body_style),
+                Paragraph(str(row['shots_blocked']), body_style),
+            ])
+        player_table = Table(
+            player_table_data,
+            colWidths=[130, 36, 40, 32, 32, 34, 54, 58, 54],
+            repeatRows=1
+        )
+        player_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ]))
+        main_team_name = match.home_team.name if match.main else match.away_team.name
+        elements.append(KeepTogether([
+            Paragraph(f'Player Shot Summary — {main_team_name}', styles['Heading2']),
+            player_table
+        ]))
+
+    document.build(elements)
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+
+    filename = build_summary_export_filename(match, summary_type)
+    return Response(
+        pdf_bytes,
+        mimetype='application/pdf',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
+
+
+def get_match_goal_totals(match):
     lineup_team_by_player = {
         player_id: team_id
         for player_id, team_id in db.session.query(
             MatchLineup.player_id,
             MatchLineup.team_id
-        ).filter(MatchLineup.match_id == match_id).all()
+        ).filter(MatchLineup.match_id == match.id).all()
     }
+
+    player_ids = {player_id for player_id in lineup_team_by_player if player_id}
 
     stat_rows = db.session.query(
         PlayerMatchStats.player_id,
@@ -311,20 +544,65 @@ def recalc_match_score(match_id):
     ).join(
         Player, Player.id == PlayerMatchStats.player_id
     ).filter(
-        PlayerMatchStats.match_id == match_id
+        PlayerMatchStats.match_id == match.id
     ).all()
 
-    home_goals = 0
-    away_goals = 0
+    for player_id, _, _ in stat_rows:
+        if player_id:
+            player_ids.add(player_id)
+
+    own_goal_rows = db.session.query(
+        MatchEvent.team_id,
+        MatchEvent.player_id
+    ).filter(
+        MatchEvent.match_id == match.id,
+        MatchEvent.event_type == 'own_goal'
+    ).all()
+
+    for _, player_id in own_goal_rows:
+        if player_id:
+            player_ids.add(player_id)
+
+    player_team_by_id = {
+        player_id: team_id
+        for player_id, team_id in db.session.query(Player.id, Player.team_id).filter(Player.id.in_(player_ids)).all()
+    } if player_ids else {}
+
+    totals = {
+        match.home_team_id: 0,
+        match.away_team_id: 0
+    }
 
     for player_id, goals, player_team_id in stat_rows:
         team_id = lineup_team_by_player.get(player_id) or player_team_id
-        goals_value = int(goals or 0)
+        if team_id in totals:
+            totals[team_id] += int(goals or 0)
 
-        if team_id == match.home_team_id:
-            home_goals += goals_value
-        elif team_id == match.away_team_id:
-            away_goals += goals_value
+    for benefiting_team_id, player_id in own_goal_rows:
+        credited_team_id = benefiting_team_id
+
+        if credited_team_id not in totals and player_id:
+            player_team_id = lineup_team_by_player.get(player_id) or player_team_by_id.get(player_id)
+            if player_team_id == match.home_team_id:
+                credited_team_id = match.away_team_id
+            elif player_team_id == match.away_team_id:
+                credited_team_id = match.home_team_id
+
+        if credited_team_id in totals:
+            totals[credited_team_id] += 1
+
+    return totals
+
+
+def recalc_match_score(match_id):
+    """Recalculate match score from player goal stats for that match."""
+    match = Match.query.get(match_id)
+    if not match:
+        return False
+
+    goal_totals = get_match_goal_totals(match)
+    home_goals = goal_totals[match.home_team_id]
+    away_goals = goal_totals[match.away_team_id]
 
     score_changed = (match.home_score != home_goals) or (match.away_score != away_goals)
     match.home_score = home_goals
@@ -1033,23 +1311,6 @@ def build_match_spreadsheet_payload(match_id):
 def build_match_team_summary_payload(match_id):
     match = Match.query.get_or_404(match_id)
 
-    players = Player.query.filter(
-        Player.team_id.in_([match.home_team_id, match.away_team_id])
-    ).all()
-    player_ids = [player.id for player in players]
-
-    player_stats_rows = PlayerMatchStats.query.filter(
-        PlayerMatchStats.match_id == match_id,
-        PlayerMatchStats.player_id.in_(player_ids)
-    ).all() if player_ids else []
-    gk_stats_rows = GoalKeeperMatchStats.query.filter(
-        GoalKeeperMatchStats.match_id == match_id,
-        GoalKeeperMatchStats.player_id.in_(player_ids)
-    ).all() if player_ids else []
-
-    player_stats_by_player = {row.player_id: row for row in player_stats_rows}
-    gk_stats_by_player = {row.player_id: row for row in gk_stats_rows}
-
     lineup_rows = MatchLineup.query.filter_by(match_id=match_id).all()
     lineup_position_by_player = {
         row.player_id: (row.position.upper() if row.position else '')
@@ -1060,6 +1321,20 @@ def build_match_team_summary_payload(match_id):
         for row in lineup_rows
         if row.team_id
     }
+
+    player_stats_rows = PlayerMatchStats.query.filter_by(match_id=match_id).all()
+    gk_stats_rows = GoalKeeperMatchStats.query.filter_by(match_id=match_id).all()
+
+    player_stats_by_player = {row.player_id: row for row in player_stats_rows}
+    gk_stats_by_player = {row.player_id: row for row in gk_stats_rows}
+
+    player_ids = {
+        row.player_id for row in lineup_rows if row.player_id
+    }
+    player_ids.update(row.player_id for row in player_stats_rows if row.player_id)
+    player_ids.update(row.player_id for row in gk_stats_rows if row.player_id)
+
+    players = Player.query.filter(Player.id.in_(player_ids)).all() if player_ids else []
 
     def is_goalkeeper(player):
         lineup_position = lineup_position_by_player.get(player.id)
@@ -1101,7 +1376,8 @@ def build_match_team_summary_payload(match_id):
     }
 
     for player in players:
-        team_totals = totals.get(player.team_id)
+        team_id = lineup_team_by_player.get(player.id) or player.team_id
+        team_totals = totals.get(team_id)
         if not team_totals:
             continue
 
@@ -1121,7 +1397,6 @@ def build_match_team_summary_payload(match_id):
             team_totals['team_pacing_score'] += int(passing_stats.pack_pass_score or 0)
 
         if outfield_stats:
-            team_totals['xg'] += float(outfield_stats.xG or 0)
             team_totals['goals'] += int(outfield_stats.goals or 0)
             team_totals['shots_on_target'] += int(outfield_stats.shots_on_target or 0)
             team_totals['shots_off_target'] += int(outfield_stats.shots_off_target or 0)
@@ -1134,20 +1409,20 @@ def build_match_team_summary_payload(match_id):
         if goalkeeper_stats:
             team_totals['goalkeeper_saves'] += int((goalkeeper_stats.saves or 0) + (goalkeeper_stats.saves_held or 0))
 
-    players_by_id = {player.id: player for player in players}
     shot_events = ShotEvent.query.filter_by(match_id=match_id).all()
     for shot_event in shot_events:
-        shooter = players_by_id.get(shot_event.player_id)
-        if not shooter:
-            continue
-
-        shooter_team_id = lineup_team_by_player.get(shooter.id) or shooter.team_id
-        team_totals = totals.get(shooter_team_id)
+        team_totals = totals.get(shot_event.team_id)
         if not team_totals:
             continue
 
+        team_totals['xg'] += float(shot_event.xG or 0)
+
         if not shot_event.penalty:
             team_totals['non_penalty_xg'] += float(shot_event.xG or 0)
+
+    goal_totals = get_match_goal_totals(match)
+    totals[match.home_team_id]['goals'] = goal_totals[match.home_team_id]
+    totals[match.away_team_id]['goals'] = goal_totals[match.away_team_id]
 
     def safe_pct(numerator, denominator):
         if denominator <= 0:
@@ -1279,178 +1554,32 @@ def export_match_team_summary_pdf(match_id):
     """Export key team summary metrics as a PDF."""
     match, summary_rows, goal_threat_rows = build_match_team_summary_payload(match_id)
 
-    buffer = io.BytesIO()
-    document = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=36, rightMargin=36, topMargin=36, bottomMargin=36)
-    styles = getSampleStyleSheet()
-    elements = []
+    return build_match_summary_pdf_response(
+        match,
+        summary_rows,
+        goal_threat_rows,
+        'match_summary',
+        summary_heading='Match Summary'
+    )
 
-    elements.append(KeepTogether([
-        Paragraph(f"{match.home_team.name} vs {match.away_team.name}", styles['Title']),
-        Paragraph(match.match_date.strftime('%Y-%m-%d %H:%M'), styles['Normal'])
-    ]))
-    elements.append(Spacer(1, 14))
 
-    table_data = [['Metric', match.home_team.name, match.away_team.name]]
-    for row in summary_rows:
-        home_value = row['home_value']
-        away_value = row['away_value']
-        if row['value_type'] == 'float':
-            home_display = f"{home_value:.2f}"
-            away_display = f"{away_value:.2f}"
-        else:
-            home_display = str(home_value)
-            away_display = str(away_value)
+@app.route('/matches/<int:match_id>/shot-summary/export.pdf')
+def export_match_shot_summary_pdf(match_id):
+    """Export a shot-focused team summary as a PDF."""
+    match, summary_rows, goal_threat_rows = build_match_team_summary_payload(match_id)
+    shot_summary_rows = [
+        row for row in summary_rows
+        if row['metric'] not in {'Completed Passes', 'Team Packing Score'}
+    ]
+    _, _, player_rows, _ = build_player_match_summary_payload(match_id)
 
-        table_data.append([row['metric'], home_display, away_display])
-
-    summary_table = Table(table_data, colWidths=[220, 140, 140])
-    summary_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-    ]))
-    elements.append(KeepTogether([
-        Paragraph("Match Summary", styles['Heading2']),
-        summary_table
-    ]))
-    elements.append(Spacer(1, 16))
-
-    goal_threat_table_data = [['Metric', match.home_team.name, match.away_team.name]]
-    for row in goal_threat_rows:
-        home_value = row['home_value']
-        away_value = row['away_value']
-        if row['value_type'] == 'float':
-            home_display = f"{home_value:.2f}"
-            away_display = f"{away_value:.2f}"
-        elif row['value_type'] == 'pct':
-            home_display = f"{home_value:.1f}%"
-            away_display = f"{away_value:.1f}%"
-        else:
-            home_display = str(home_value)
-            away_display = str(away_value)
-
-        goal_threat_table_data.append([row['metric'], home_display, away_display])
-
-    goal_threat_table = Table(goal_threat_table_data, colWidths=[220, 140, 140])
-    goal_threat_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-    ]))
-    elements.append(KeepTogether([
-        Paragraph("Goal Threat", styles['Heading2']),
-        goal_threat_table
-    ]))
-    elements.append(Spacer(1, 16))
-
-    main_team_id = match.home_team_id if match.main else match.away_team_id
-    non_main_team_id = match.away_team_id if match.main else match.home_team_id
-    main_team_name = match.home_team.name if match.main else match.away_team.name
-    non_main_team_name = match.away_team.name if match.main else match.home_team.name
-
-    lineup_team_by_player = {
-        row.player_id: row.team_id
-        for row in MatchLineup.query.filter_by(match_id=match.id).all()
-        if row.team_id
-    }
-
-    shot_events = ShotEvent.query.filter(
-        ShotEvent.match_id == match.id,
-        ShotEvent.veo_seconds.isnot(None),
-        ShotEvent.veo_seconds >= 0
-    ).order_by(ShotEvent.veo_seconds.asc(), ShotEvent.id.asc()).all()
-
-    player_ids = [event.player_id for event in shot_events if event.player_id]
-    players_by_id = {
-        player.id: player
-        for player in Player.query.filter(Player.id.in_(player_ids)).all()
-    } if player_ids else {}
-
-    main_points = [(0.0, 0.0)]
-    non_main_points = [(0.0, 0.0)]
-    main_cumulative_xg = 0.0
-    non_main_cumulative_xg = 0.0
-
-    for event in shot_events:
-        shooter = players_by_id.get(event.player_id)
-        if not shooter:
-            continue
-
-        shooter_team_id = lineup_team_by_player.get(shooter.id) or shooter.team_id
-        shot_minute = float(event.veo_seconds) / 60.0
-        shot_xg = float(event.xG or 0.0)
-
-        if shooter_team_id == main_team_id:
-            main_cumulative_xg += shot_xg
-        elif shooter_team_id == non_main_team_id:
-            non_main_cumulative_xg += shot_xg
-        else:
-            continue
-
-        main_points.append((shot_minute, main_cumulative_xg))
-        non_main_points.append((shot_minute, non_main_cumulative_xg))
-
-    timeline_elements = [Paragraph("xG Timeline", styles['Heading2'])]
-
-    if len(main_points) > 1 or len(non_main_points) > 1:
-        drawing = Drawing(520, 220)
-        line_plot = LinePlot()
-        line_plot.x = 45
-        line_plot.y = 40
-        line_plot.height = 150
-        line_plot.width = 445
-        line_plot.data = [main_points, non_main_points]
-        line_plot.joinedLines = 1
-
-        line_plot.lines[0].strokeColor = colors.HexColor('#1f77b4')
-        line_plot.lines[0].strokeWidth = 2
-        line_plot.lines[1].strokeColor = colors.HexColor('#d62728')
-        line_plot.lines[1].strokeWidth = 2
-
-        max_minute = max(point[0] for point in main_points + non_main_points)
-        max_cumulative_xg = max(point[1] for point in main_points + non_main_points)
-
-        x_max = max(5.0, math.ceil(max_minute))
-        y_max = max(0.5, math.ceil(max_cumulative_xg * 2) / 2)
-
-        line_plot.xValueAxis.valueMin = 0
-        line_plot.xValueAxis.valueMax = x_max
-        line_plot.xValueAxis.valueStep = max(1, int(math.ceil(x_max / 6)))
-        line_plot.yValueAxis.valueMin = 0
-        line_plot.yValueAxis.valueMax = y_max
-        line_plot.yValueAxis.valueStep = max(0.1, round(y_max / 5, 1))
-        line_plot.xValueAxis.labelTextFormat = '%.0f'
-        line_plot.yValueAxis.labelTextFormat = '%.1f'
-
-        drawing.add(line_plot)
-        timeline_elements.append(drawing)
-        timeline_elements.append(Paragraph(f"Blue: {main_team_name} (main) | Red: {non_main_team_name}", styles['Normal']))
-    else:
-        timeline_elements.append(Paragraph("No timed shot data available to plot cumulative xG timeline.", styles['Normal']))
-
-    elements.append(KeepTogether(timeline_elements))
-
-    document.build(elements)
-    pdf_bytes = buffer.getvalue()
-    buffer.close()
-
-    filename = build_summary_export_filename(match, 'match_summary')
-    return Response(
-        pdf_bytes,
-        mimetype='application/pdf',
-        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    return build_match_summary_pdf_response(
+        match,
+        shot_summary_rows,
+        goal_threat_rows,
+        'shot_summary',
+        summary_heading='Shot Summary',
+        player_rows=player_rows
     )
 
 
@@ -2228,7 +2357,7 @@ def add_match_event(match_id):
     """Add an event to a match"""
     match = Match.query.get_or_404(match_id)
 
-    def resolve_card_player_id(raw_player_id, raw_player_name):
+    def resolve_match_player_id(raw_player_id, raw_player_name):
         if raw_player_id:
             try:
                 return int(raw_player_id)
@@ -2301,24 +2430,55 @@ def add_match_event(match_id):
             )
             db.session.add(event)
     else:
-        # Card events can be linked by selected ID or typed player name.
+        # Card and own-goal events can be linked by selected ID or typed player name.
         player_id = request.form.get('player_id')
         player_name = request.form.get('player_name')
+        team_id = None
 
-        if event_type in ('yellow_card', 'red_card'):
-            player_id = resolve_card_player_id(player_id, player_name)
+        if event_type in ('yellow_card', 'red_card', 'own_goal'):
+            player_id = resolve_match_player_id(player_id, player_name)
             if not player_id:
-                flash('Select or enter a valid player name for card events.', 'error')
+                flash('Select or enter a valid player name for this event.', 'error')
                 return redirect(url_for('match_detail', match_id=match_id))
         else:
             player_id = int(player_id) if player_id else None
+
+        if event_type == 'own_goal':
+            raw_team_id = request.form.get('team_id')
+            try:
+                team_id = int(raw_team_id)
+            except (TypeError, ValueError):
+                team_id = None
+
+            if team_id not in (match.home_team_id, match.away_team_id):
+                flash('Select the team benefiting from the own goal.', 'error')
+                return redirect(url_for('match_detail', match_id=match_id))
+
+            player = Player.query.get_or_404(player_id)
+            player_team_id = get_team_id_for_match(match_id, player)
+            if player_team_id not in (match.home_team_id, match.away_team_id):
+                flash('Unable to determine the own-goal player team for this match.', 'error')
+                return redirect(url_for('match_detail', match_id=match_id))
+
+            if player_team_id == team_id:
+                flash('An own goal must benefit the opposing team.', 'error')
+                return redirect(url_for('match_detail', match_id=match_id))
+
+            if not request.form.get('description'):
+                benefiting_team = match.home_team if team_id == match.home_team_id else match.away_team
+                description = f'Benefits: {benefiting_team.name}'
+            else:
+                description = request.form.get('description')
+        else:
+            description = request.form.get('description')
         
         event = MatchEvent(
             match_id=match_id,
+            team_id=team_id,
             player_id=player_id,
             event_type=event_type,
             minute=request.form['minute'],
-            description=request.form.get('description')
+            description=description
         )
         db.session.add(event)
 
@@ -2929,6 +3089,16 @@ def record_shot(match_id):
     is_free_kick = shot_context == 'free_kick'
     is_corner = shot_context == 'corner'
 
+    lineup_team_id = db.session.query(MatchLineup.team_id).filter(
+        MatchLineup.match_id == match_id,
+        MatchLineup.player_id == player_id,
+        MatchLineup.team_id.isnot(None)
+    ).scalar()
+    player = Player.query.get_or_404(player_id)
+    shot_team_id = lineup_team_id or player.team_id
+    if shot_team_id not in {match.home_team_id, match.away_team_id}:
+        return jsonify({'error': 'Unable to determine team for shot event'}), 400
+
     if isinstance(big_chance_raw, str):
         is_big_chance = big_chance_raw.strip().lower() in ('1', 'true', 'yes', 'on')
     else:
@@ -2941,7 +3111,6 @@ def record_shot(match_id):
     # Get or create player stats
     player_stats = PlayerMatchStats.query.filter_by(match_id=match_id, player_id=player_id).first()
     if not player_stats:
-        player = Player.query.get_or_404(player_id)
         player_stats = PlayerMatchStats(
             match_id=match_id,
             player_id=player_id
@@ -2975,6 +3144,7 @@ def record_shot(match_id):
     
     shot_event = ShotEvent(
         match_id=match_id,
+        team_id=shot_team_id,
         player_id=player_id,
         assist_player_id=assist_player_id,
         shot_on_target=(shot_type == 'on_target'),

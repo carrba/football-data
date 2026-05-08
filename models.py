@@ -123,11 +123,14 @@ class MatchEvent(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     match_id = db.Column(db.Integer, db.ForeignKey('matches.id'), nullable=False)
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id'))
     player_id = db.Column(db.Integer, db.ForeignKey('players.id'))
     event_type = db.Column(db.String(50), nullable=False)  # yellow_card, red_card, substitution (goals tracked in PlayerMatchStats)
     minute = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    team = db.relationship('Team')
     
     def __repr__(self):
         return f'<MatchEvent {self.event_type} at {self.minute}\'>'
@@ -136,6 +139,7 @@ class MatchEvent(db.Model):
         return {
             'id': self.id,
             'match_id': self.match_id,
+            'team_id': self.team_id,
             'player': self.player.to_dict() if self.player else None,
             'event_type': self.event_type,
             'minute': self.minute,
@@ -149,6 +153,7 @@ class ShotEvent(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     match_id = db.Column(db.Integer, db.ForeignKey('matches.id'), nullable=False)
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=False)
     player_id = db.Column(db.Integer, db.ForeignKey('players.id'), nullable=False)
     assist_player_id = db.Column(db.Integer, db.ForeignKey('players.id'), nullable=True)
     shot_on_target = db.Column(db.Boolean, nullable=False, default=False)
@@ -163,6 +168,7 @@ class ShotEvent(db.Model):
     veo_seconds = db.Column(db.Integer, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    team = db.relationship('Team')
     assist_player = db.relationship('Player', foreign_keys=[assist_player_id], backref='assisted_shot_events')
 
     __table_args__ = (
@@ -191,6 +197,7 @@ class ShotEvent(db.Model):
         return {
             'id': self.id,
             'match_id': self.match_id,
+            'team_id': self.team_id,
             'player': self.player.to_dict() if self.player else None,
             'assist_player_id': self.assist_player_id,
             'shot_on_target': self.shot_on_target,

@@ -573,6 +573,7 @@
 
 <div class="actions">
     <a href="{{ url_for('export_match_spreadsheet_csv', match_id=match.id) }}" class="btn">⬇️ Export CSV</a>
+    <a href="{{ url_for('export_match_shot_summary_pdf', match_id=match.id) }}" class="btn">⬇️ Export Shot Summary PDF</a>
     <a href="{{ url_for('export_player_match_summary_pdf', match_id=match.id) }}" class="btn">⬇️ Export Player Match Summary PDF</a>
     <a href="{{ url_for('match_stats', match_id=match.id) }}" class="btn">📊 Record Stats</a>
     <a href="{{ url_for('match_detail', match_id=match.id) }}" class="btn btn-secondary">← Back to Match</a>

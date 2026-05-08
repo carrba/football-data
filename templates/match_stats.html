@@ -2644,18 +2644,43 @@ function getDefaultXgForShotContext(context) {
     return '0.5';
 }
 
-function applyShotContextDefaultXg() {
+function setShotXgInputValue(value) {
+    const xgInput = document.getElementById('shot_xG');
+    if (!xgInput) {
+        return;
+    }
+
+    xgInput.value = value;
+    xgInput.dataset.autoDefault = 'true';
+}
+
+function applyShotContextDefaultXg(force = false) {
     const selectedContext = document.querySelector('input[name="shotContext"]:checked');
     const xgInput = document.getElementById('shot_xG');
     if (!selectedContext || !xgInput) {
         return;
     }
 
-    xgInput.value = getDefaultXgForShotContext(selectedContext.value);
+    const currentValue = (xgInput.value || '').trim();
+    const shouldApplyDefault = force || currentValue === '' || xgInput.dataset.autoDefault === 'true';
+    if (!shouldApplyDefault) {
+        return;
+    }
+
+    setShotXgInputValue(getDefaultXgForShotContext(selectedContext.value));
 }
 
 document.querySelectorAll('input[name="shotContext"]').forEach(radio => {
     radio.addEventListener('change', applyShotContextDefaultXg);
+});
+
+document.getElementById('shot_xG')?.addEventListener('input', () => {
+    const xgInput = document.getElementById('shot_xG');
+    if (!xgInput) {
+        return;
+    }
+
+    xgInput.dataset.autoDefault = 'false';
 });
 
 function openShotModal(matchId, playerId, playerName, statsId) {
@@ -2669,7 +2694,7 @@ function openShotModal(matchId, playerId, playerName, statsId) {
     
     // Reset inputs
     document.querySelector('input[name="shotType"]:checked')?.click();
-    document.getElementById('shot_xG').value = '0.5';
+    setShotXgInputValue('0.5');
     document.getElementById('shot_veo_minutes').value = '0';
     document.getElementById('shot_veo_seconds').value = '0';
     const outsideLocationRadio = document.querySelector('input[name="shotLocation"][value="outside"]');
@@ -2680,7 +2705,7 @@ function openShotModal(matchId, playerId, playerName, statsId) {
     if (openPlayContextRadio) {
         openPlayContextRadio.checked = true;
     }
-    applyShotContextDefaultXg();
+    applyShotContextDefaultXg(true);
     document.getElementById('shot_assist_player').value = '';
     document.getElementById('shot_is_goal').checked = false;
     document.getElementById('shot_big_chance').checked = false;

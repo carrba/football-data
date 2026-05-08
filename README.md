@@ -15,7 +15,7 @@ A web application for recording and managing football match data built with Pyth
   - Defense: Tackles, Interceptions, Clearances
   - Other: Fouls, Offsides
 - **Real-time Stat Updates**: Click buttons to increment/decrement stats while watching matches
-- **PDF Export (Team Summary)**: Export key team metrics (Completed Passes, xG, Total Shots, Chances Created, Team Packing Score, Goalkeeper Saves) for a match
+- **PDF Export (Team Summary / Shot Summary)**: Export key team metrics for a match, including a shot-focused summary without Completed Passes and Team Packing Score
 - **Clean UI**: Modern, responsive interface for easy data entry
 - **API Endpoints**: RESTful API for programmatic access to match and team data
 
