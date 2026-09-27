@@ -75,7 +75,7 @@ The application will be available at `http://localhost:5000`
 ## CI/CD: Build and Push to Amazon ECR
 
 This repository includes a GitHub Actions workflow at `.github/workflows/build-and-push-ecr.yml`.
-On pushes to `main` (or manual trigger), it:
+It runs only when triggered manually (Actions → Run workflow, or `gh workflow run build-and-push-ecr.yml`). It:
 
 1. Builds the Docker image from `Dockerfile`
 2. Authenticates to AWS using GitHub OIDC
