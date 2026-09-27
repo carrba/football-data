@@ -1310,6 +1310,7 @@ def build_match_spreadsheet_payload(match_id):
 
 def build_match_team_summary_payload(match_id):
     match = Match.query.get_or_404(match_id)
+    main_team_id = match.home_team_id if match.main else match.away_team_id
 
     lineup_rows = MatchLineup.query.filter_by(match_id=match_id).all()
     lineup_position_by_player = {
@@ -1396,7 +1397,8 @@ def build_match_team_summary_payload(match_id):
             )
             team_totals['team_pacing_score'] += int(passing_stats.pack_pass_score or 0)
 
-        if outfield_stats:
+        # Non-main team shot counts come from ShotEvent rows below.
+        if outfield_stats and team_id == main_team_id:
             team_totals['goals'] += int(outfield_stats.goals or 0)
             team_totals['shots_on_target'] += int(outfield_stats.shots_on_target or 0)
             team_totals['shots_off_target'] += int(outfield_stats.shots_off_target or 0)
@@ -1404,6 +1406,7 @@ def build_match_team_summary_payload(match_id):
             team_totals['total_shots'] += int((outfield_stats.shots_on_target or 0) + (outfield_stats.shots_off_target or 0) + (outfield_stats.shots_blocked or 0))
             team_totals['shots_inside_box'] += int(outfield_stats.shots_inside_box or 0)
             team_totals['shots_outside_box'] += int(outfield_stats.shots_outside_box or 0)
+        if outfield_stats:
             team_totals['chances_created'] += int(outfield_stats.chances_created or 0)
 
         if goalkeeper_stats:
@@ -1419,6 +1422,16 @@ def build_match_team_summary_payload(match_id):
 
         if not shot_event.penalty:
             team_totals['non_penalty_xg'] += float(shot_event.xG or 0)
+
+        if shot_event.team_id != main_team_id:
+            team_totals['shots_on_target'] += int(bool(shot_event.shot_on_target))
+            team_totals['shots_off_target'] += int(bool(shot_event.shot_off_target))
+            team_totals['shots_blocked'] += int(bool(shot_event.shot_blocked))
+            team_totals['total_shots'] += 1
+            if shot_event.inside_box:
+                team_totals['shots_inside_box'] += 1
+            else:
+                team_totals['shots_outside_box'] += 1
 
     goal_totals = get_match_goal_totals(match)
     totals[match.home_team_id]['goals'] = goal_totals[match.home_team_id]
@@ -1603,7 +1616,17 @@ def build_player_match_summary_payload(match_id):
         if event.event_type == 'substitute_on' and event.player_id
     }
 
-    played_player_ids = set(lineup_position_by_player.keys()) | sub_on_player_ids
+    # Include main-team shooters even if their substitution wasn't logged,
+    # so their shot data isn't silently dropped.
+    shot_player_ids = {
+        player_id
+        for (player_id,) in db.session.query(ShotEvent.player_id).filter(
+            ShotEvent.match_id == match_id,
+            ShotEvent.team_id == main_team_id
+        ).distinct().all()
+    }
+
+    played_player_ids = set(lineup_position_by_player.keys()) | sub_on_player_ids | shot_player_ids
     if not played_player_ids:
         return match, main_team_name, [], []
 
